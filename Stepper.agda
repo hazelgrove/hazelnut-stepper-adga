@@ -206,33 +206,58 @@ infix 1 _＝_⟨_⟩
 
 data _＝_⟨_⟩ : Term → Eval-Context → Term → Set where
   DC-∘ : ∀ {e} → e ＝ ∘ ⟨ e ⟩
-
-  DC-·ₗ : ∀ {e₁ e₂ e₁′ ε}
+  DC-·ₗ : ∀ {e₁ e₂ ε e₁′}
     → e₁ ＝ ε ⟨ e₁′ ⟩
-    → (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩
-
-  DC-·ᵣ : ∀ {e₁ e₂ e₂′ ε}
-    → Value e₁
+    → e₁ · e₂ ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩
+  DC-∘ᵣ : ∀ {e₁ e₂ ε e₂′}
     → e₂ ＝ ε ⟨ e₂′ ⟩
-    → (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩
+    → e₁ · e₂ ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩
 
-  DC-Φ : ∀ {f ε e′} {e : Term}
-    → e ＝ ε ⟨ e′ ⟩
-    → (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩
+infix 1 _⊢_＝_⟨_⟩_
 
-  DC-φ : ∀ {a,g e ε e′}
-    → e ＝ ε ⟨ e′ ⟩
-    → (φ a,g ← e) ＝ (φ a,g ← ε) ⟨ e′ ⟩
+data _⊢_＝_⟨_⟩_ : Act × Gas → Term → Eval-Context → Term → Act × Gas → Set where
+  FC-∘ : ∀ {a g e} → (a , g) ⊢ e ＝ ∘ ⟨ e ⟩ (a , g)
 
-infix 1 _＝_⟨_w/_⟩
+  FC-·ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
+    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ (a′ , g′)
+    → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ (a′ , g′)
 
-data _⊢_＝_⟨_w/_⟩ : Act × Gas → Term → Eval-Context → Act × Gas → Set where
-  
+  FC-·ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
+    → Value e₁
+    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
+    → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
 
-data _|>_⇝_<|_ : Filter → Term → Term → Act × Gas → Set where
-  FM-~ : ∀ {P A G d}
-    → P matches d
-    → (P , A , G) |> d ⇝ (instr (P , A , G) d) <| (A , G)
+  FC-Φ : ∀ {a g f e ε e′ a′ g′}
+    → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+    → (a , g) ⊢ (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩ (a′ , g′)
+
+  FC-φ-one : ∀ {a₀ g₀ a g e ε e′ a′ g′}
+    → (a , one) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+    → (a₀ , g₀) ⊢ (φ (a , one) ← e) ＝ ε ⟨ e′ ⟩ (a′ , g′)
+
+  FC-φ-all : ∀ {a₀ g₀ a g e ε e′ a′ g′}
+    → (a , all) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+    → (a₀ , g₀) ⊢ (φ (a , all) ← e) ＝ (φ (a , all) ← ε) ⟨ e′ ⟩ (a′ , g′)
+
+data _⊢_⇝_ : Filter → Term → Term → Set where
+  FI-V : ∀ {p a g v}
+    → Value v
+    → (p , a , g) ⊢ v ⇝ v
+
+  FI-E : ∀ {p a g d d′}
+    → (p , a , g) ⊢ d ⇝ d′
+    → p matches d
+    → (p , a , g) ⊢ d ⇝ (φ (a , g) ← d′)
+
+  FI-I : ∀ {p₀ a₀ g₀ p a g d₀ d d′}
+    → (p₀ , a₀ , g₀) ⊢ d₀ ⇝ d
+    → (p , a , g) ⊢ d ⇝ d′
+    → (p₀ , a₀ , g₀) ⊢ Φ (p , a , g) ⇐ d₀ ⇝ d′
+
+  FI-· : ∀ {p a g d₁ d₂ d₁′ d₂′}
+    → (p , a , g) ⊢ d₁ ⇝ d₁′
+    → (p , a , g) ⊢ d₂ ⇝ d₂′
+    → (p , a , g) ⊢ (d₁ · d₂) ⇝ (d₁′ · d₂′)
 
 infix 4 _—→_
 
@@ -266,18 +291,21 @@ data _—→_ : Term → Term → Set where
     → Value V
     → (φ A,G ← V) —→ V
 
-data _↦_ : Term → Term → Set where
-  step : ∀ {e e₀ e₀′ ε e′}
-    → e ＝ ε ⟨ e₀ ⟩
+data _⊢_↦_ : Filter → Term → Term → Set where
+  step : ∀ {p a g e eᵢ e₀ e₀′ ε e′ g₀}
+    → (p , a , g) ⊢ e ⇝ eᵢ
+    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ (stop , g₀)
     → e₀ —→ e₀′
     → e′ ＝ ε ⟨ e₀′ ⟩
-    → e ↦ e′
+    → (p , a , g) ⊢ e ↦ e′
 
-  -- skip : ∀ {eᵢ e e₀ e₀′ ε e′}
-  --   → eᵢ ↦ e
-  --   → e ＝ ε ⟨ e₀ ⟩
-  --   → e₀ —→ e₀′
-  --   → e′ ＝ ε ⟨ e₀′ ⟩
+  skip : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
+    → (p , a , g) ⊢ e ⇝ eᵢ
+    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ (skip , g₀)
+    → e₀ —→ e₀′
+    → e′ ＝ ε ⟨ e₀′ ⟩
+    → (p , a , g) ⊢ e′ ↦ e″
+    → (p , a , g) ⊢ e ↦ e″
 
 data Type : Set where
   _⇒_ : Type → Type → Type
