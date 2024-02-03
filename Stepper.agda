@@ -199,6 +199,8 @@ data Eval-Context : Set where
   ∘    : Eval-Context
   _·ₗ_ : Eval-Context → Term → Eval-Context
   _·ᵣ_ : Term → Eval-Context → Eval-Context
+  Φ_⇐_ : Filter → Eval-Context → Eval-Context
+  φ_←_ : Act × Gas → Eval-Context → Eval-Context
 
 infix 1 _＝_⟨_⟩
 
@@ -213,6 +215,24 @@ data _＝_⟨_⟩ : Term → Eval-Context → Term → Set where
     → Value e₁
     → e₂ ＝ ε ⟨ e₂′ ⟩
     → (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩
+
+  DC-Φ : ∀ {f ε e′} {e : Term}
+    → e ＝ ε ⟨ e′ ⟩
+    → (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩
+
+  DC-φ : ∀ {a,g e ε e′}
+    → e ＝ ε ⟨ e′ ⟩
+    → (φ a,g ← e) ＝ (φ a,g ← ε) ⟨ e′ ⟩
+
+infix 1 _＝_⟨_w/_⟩
+
+data _⊢_＝_⟨_w/_⟩ : Act × Gas → Term → Eval-Context → Act × Gas → Set where
+  
+
+data _|>_⇝_<|_ : Filter → Term → Term → Act × Gas → Set where
+  FM-~ : ∀ {P A G d}
+    → P matches d
+    → (P , A , G) |> d ⇝ (instr (P , A , G) d) <| (A , G)
 
 infix 4 _—→_
 
@@ -246,28 +266,6 @@ data _—→_ : Term → Term → Set where
     → Value V
     → (φ A,G ← V) —→ V
 
-infix 1 _∼_⟨_⟩
-
-
-data _~_⟨_⟩ : Pat → Eval-Context → Term → Set where
-  CM-∘ : ∀ {P e}
-    → P matches e
-    → P ~ ∘ ⟨ e ⟩
-
-  CM-·ₗ : ∀ {P ε e₁ e₂}
-    → P ~ ε ⟨ e₁ ⟩
-    → P ~ (ε ·ₗ e₂) ⟨ e₁ ⟩
-
-  CM-·ᵣ : ∀ {P ε e₁ e₂}
-    → P ~ ε ⟨ e₂ ⟩
-    → P ~ (e₁ ·ᵣ ε) ⟨ e₂ ⟩
-
-data _→→_ : Term → Term → Set where
-  tran : ∀ {L L′}
-    → L —→ L′
-    → L →→ L′
-    
-
 data _↦_ : Term → Term → Set where
   step : ∀ {e e₀ e₀′ ε e′}
     → e ＝ ε ⟨ e₀ ⟩
@@ -275,6 +273,11 @@ data _↦_ : Term → Term → Set where
     → e′ ＝ ε ⟨ e₀′ ⟩
     → e ↦ e′
 
+  -- skip : ∀ {eᵢ e e₀ e₀′ ε e′}
+  --   → eᵢ ↦ e
+  --   → e ＝ ε ⟨ e₀ ⟩
+  --   → e₀ —→ e₀′
+  --   → e′ ＝ ε ⟨ e₀′ ⟩
 
 data Type : Set where
   _⇒_ : Type → Type → Type
