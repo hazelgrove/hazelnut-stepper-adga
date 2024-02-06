@@ -192,72 +192,144 @@ instr F (ƛ x ⇒ L) = (ƛ x ⇒ L)
 instr F (L · M) = instr₀ F ((instr F L) · (instr F M))
 instr F (# x) = (# x)
 instr F (L `+ M) = instr₀ F ((instr F L) `+ (instr F M))
-instr F (Φ x ⇐ L) = instr F L
+instr F (Φ F' ⇐ L) = instr F' (instr F L)
 instr F (φ x ← L) = instr F L
 
 data Eval-Context : Set where
   ∘    : Eval-Context
   _·ₗ_ : Eval-Context → Term → Eval-Context
   _·ᵣ_ : Term → Eval-Context → Eval-Context
+  _+ₗ_ : Eval-Context → Term → Eval-Context
+  _+ᵣ_ : Term → Eval-Context → Eval-Context
   Φ_⇐_ : Filter → Eval-Context → Eval-Context
   φ_←_ : Act × Gas → Eval-Context → Eval-Context
 
-infix 1 _＝_⟨_⟩
+infix 2 _⟨_⟩
 
-data _＝_⟨_⟩ : Term → Eval-Context → Term → Set where
-  DC-∘ : ∀ {e} → e ＝ ∘ ⟨ e ⟩
+data EvalObject : Set where
+  _⟨_⟩ : Eval-Context → Term → EvalObject
+
+infix 1 _＝_
+
+data _＝_ : Term → EvalObject → Set where
+  DC-∘ : ∀ {e}
+    → e ＝ ∘ ⟨ e ⟩
+
   DC-·ₗ : ∀ {e₁ e₂ ε e₁′}
     → e₁ ＝ ε ⟨ e₁′ ⟩
     → e₁ · e₂ ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩
-  DC-∘ᵣ : ∀ {e₁ e₂ ε e₂′}
+
+  DC-·ᵣ : ∀ {e₁ e₂ ε e₂′}
     → e₂ ＝ ε ⟨ e₂′ ⟩
     → e₁ · e₂ ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩
 
-infix 1 _⊢_＝_⟨_⟩_
+  DC-φ : ∀ {a g e ε e′}
+    → e ＝ ε ⟨ e′ ⟩
+    → φ (a , g) ← e ＝ (φ (a , g) ← ε) ⟨ e′ ⟩
 
-data _⊢_＝_⟨_⟩_ : Act × Gas → Term → Eval-Context → Term → Act × Gas → Set where
-  FC-∘ : ∀ {a g e} → (a , g) ⊢ e ＝ ∘ ⟨ e ⟩ (a , g)
+  DC-+ₗ : ∀ {e₁ e₂ ε e₁′}
+    → e₁ ＝ ε ⟨ e₁′ ⟩
+    → e₁ `+ e₂ ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩
+
+  DC-+ᵣ : ∀ {e₁ e₂ ε e₂′}
+    → e₂ ＝ ε ⟨ e₂′ ⟩
+    → e₁ `+ e₂ ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩
+
+decompose : Term → List EvalObject
+decompose (` x) = (∘ ⟨ (` x) ⟩) ∷ []
+decompose (ƛ x ⇒ e) = []
+decompose (e₁ · e₂) = {!!}
+
+infix 1 _⊢_＝_⊣_
+
+data _⊢_＝_⊣_ : Act × Gas → Term → EvalObject → Act × Gas → Set where
+  FC-∘ : ∀ {a g e} → (a , g) ⊢ e ＝ ∘ ⟨ e ⟩ ⊣ (a , g)
 
   FC-·ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
-    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ (a′ , g′)
-    → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ (a′ , g′)
+    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
 
   FC-·ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
     → Value e₁
-    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
-    → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
+    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ ⊣ (a′ , g′)
+
+  FC-+ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
+    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ (e₁ `+ e₂) ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
+
+  FC-+ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
+    → (a , g) ⊢ e₁ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ (e₁ `+ e₂) ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩ ⊣ (a′ , g′)
 
   FC-Φ : ∀ {a g f e ε e′ a′ g′}
-    → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
-    → (a , g) ⊢ (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩ (a′ , g′)
+    → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩ ⊣ (a′ , g′)
 
   FC-φ-one : ∀ {a₀ g₀ a e ε e′ a′ g′}
-    → (a , one) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
-    → (a₀ , g₀) ⊢ (φ (a , one) ← e) ＝ ε ⟨ e′ ⟩ (a′ , g′)
+    → (a , one) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
+    → (a₀ , g₀) ⊢ (φ (a , one) ← e) ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
 
   FC-φ-all : ∀ {a₀ g₀ a e ε e′ a′ g′}
-    → (a , all) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
-    → (a₀ , g₀) ⊢ (φ (a , all) ← e) ＝ (φ (a , all) ← ε) ⟨ e′ ⟩ (a′ , g′)
+    → (a , all) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
+    → (a₀ , g₀) ⊢ (φ (a , all) ← e) ＝ (φ (a , all) ← ε) ⟨ e′ ⟩ ⊣ (a′ , g′)
+
+-- data _⊢_＝_⇝_⊣_ : Act × Gas → Term → EvalObject → EvalObject → Act × Gas → Set where
+--   FC-∘ : ∀ {a g e} → (a , g) ⊢ e ＝ ∘ ⟨ e ⟩ ⇝ φ (a , g) ← ∘ ⟨ e ⟩ ⊣ (a , g)
+
+--   FC-·ₗ : ∀ {a g e₁ e₂ e₁′ ε ε′ a′ g′}
+--     → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⇝ ε′ ⟨ e₁′ ⟩ ⊣ (a′ , g′)
+--     → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ ⇝ (ε′ ·ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
+
+--   FC-·ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
+--     → Value e₁
+--     → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
+--     → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
+
+--   FC-+ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
+--     → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ (a′ , g′)
+--     → (a , g) ⊢ (e₁ `+ e₂) ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩ (a′ , g′)
+
+--   FC-+ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
+--     → (a , g) ⊢ e₁ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
+--     → (a , g) ⊢ (e₁ `+ e₂) ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
+
+--   FC-Φ : ∀ {a g f e ε e′ a′ g′}
+--     → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+--     → (a , g) ⊢ (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩ (a′ , g′)
+
+--   FC-φ-one : ∀ {a₀ g₀ a e ε e′ a′ g′}
+--     → (a , one) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+--     → (a₀ , g₀) ⊢ (φ (a , one) ← e) ＝ ε ⟨ e′ ⟩ (a′ , g′)
+
+--   FC-φ-all : ∀ {a₀ g₀ a e ε e′ a′ g′}
+--     → (a , all) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
+--     → (a₀ , g₀) ⊢ (φ (a , all) ← e) ＝ (φ (a , all) ← ε) ⟨ e′ ⟩ (a′ , g′)
+
 
 data _⊢_⇝_ : Filter → Term → Term → Set where
-  FI-V : ∀ {p a g v}
-    → Value v
-    → (p , a , g) ⊢ v ⇝ v
+  FI-refl : ∀ {p a g e}
+    → (p , a , g) ⊢ e ⇝ e
 
-  FI-E : ∀ {p a g d d′}
-    → (p , a , g) ⊢ d ⇝ d′
-    → p matches d
-    → (p , a , g) ⊢ d ⇝ (φ (a , g) ← d′)
+  FI-E : ∀ {p a g e e′}
+    → (p , a , g) ⊢ e ⇝ e′
+    → p matches e
+    → (p , a , g) ⊢ e ⇝ (φ (a , g) ← e′)
 
-  FI-I : ∀ {p₀ a₀ g₀ p a g d₀ d d′}
-    → (p₀ , a₀ , g₀) ⊢ d₀ ⇝ d
-    → (p , a , g) ⊢ d ⇝ d′
-    → (p₀ , a₀ , g₀) ⊢ Φ (p , a , g) ⇐ d₀ ⇝ d′
+  FI-I : ∀ {p₀ a₀ g₀ p a g e₀ e e′}
+    → (p₀ , a₀ , g₀) ⊢ e₀ ⇝ e
+    → (p , a , g) ⊢ e ⇝ e′
+    → (p₀ , a₀ , g₀) ⊢ Φ (p , a , g) ⇐ e₀ ⇝ e′
 
   FI-· : ∀ {p a g d₁ d₂ d₁′ d₂′}
     → (p , a , g) ⊢ d₁ ⇝ d₁′
     → (p , a , g) ⊢ d₂ ⇝ d₂′
     → (p , a , g) ⊢ (d₁ · d₂) ⇝ (d₁′ · d₂′)
+
+  FI-+ : ∀ {p a g d₁ d₂ d₁′ d₂′}
+    → (p , a , g) ⊢ d₁ ⇝ d₁′
+    → (p , a , g) ⊢ d₂ ⇝ d₂′
+    → (p , a , g) ⊢ (d₁ `+ d₂) ⇝ (d₁′ `+ d₂′)
 
 infix 4 _—→_
 
