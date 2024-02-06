@@ -1,6 +1,7 @@
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; _+_)
 open import Data.Product using (_,_; _×_)
+open import Data.List using (List; _∷_; [])
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; _≢_; refl; [_])
@@ -363,20 +364,46 @@ data _—→_ : Term → Term → Set where
     → Value V
     → (φ A,G ← V) —→ V
 
+  β-+ : ∀ {n₁ n₂}
+    → (# n₁) `+ (# n₂) —→ # (n₁ + n₂)
+
+data _⊢_→*_ : Filter → Term → Term → Set where
+  refl : ∀ {p a g e}
+    → (p , a , g) ⊢ e →* strip e
+    
+  skip : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
+    → (p , a , g) ⊢ e ⇝ eᵢ
+    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (skip , g₀)
+    → e₀ —→ e₀′
+    → e′ ＝ ε ⟨ e₀′ ⟩
+    → (p , a , g) ⊢ e′ →* e″
+    → (p , a , g) ⊢ e →* e″
+
+_ : (`e , skip , all) ⊢ ((# 1) `+ (# 2) `+ (# 3) `+ (# 4)) →* (# 10)
+_ =
+  skip (FI-+ (FI-+ (FI-E FI-refl PM-`e) FI-refl) FI-refl) (FC-+ₗ (FC-+ₗ (FC-φ-all FC-∘))) β-+ (DC-+ₗ (DC-+ₗ (DC-φ DC-∘)))
+  {!!}
+  -- skip FI (FC-φ-all (FC-+ₗ (FC-φ-all (FC-+ₗ (FC-φ-all FC-∘))))) β-+ (DC-φ (DC-+ₗ (DC-φ (DC-+ₗ (DC-φ DC-∘)))))
+  -- (skip FI (FC-φ-all (FC-+ₗ (FC-φ-all FC-∘))) β-+ (DC-φ (DC-+ₗ (DC-φ DC-∘)))
+  -- (skip FI (FC-φ-all FC-∘) β-+ (DC-φ DC-∘) refl))
+
+_ : (`e , skip , all) ⊢ Φ (# 1 `+ # 2 , stop , one) ⇐ (# 1 `+ # 2) `+ (# 3 `+ # 4) →* ((# 1 `+ # 2) `+ # 7)
+_ = skip {!!} {!!} {!!} {!!} {!!}
+
 data _⊢_↦_ : Filter → Term → Term → Set where
   step : ∀ {p a g e eᵢ e₀ e₀′ ε e′ g₀}
     → (p , a , g) ⊢ e ⇝ eᵢ
-    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ (stop , g₀)
+    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (stop , g₀)
     → e₀ —→ e₀′
     → e′ ＝ ε ⟨ e₀′ ⟩
     → (p , a , g) ⊢ e ↦ e′
 
   skip : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
     → (p , a , g) ⊢ e ⇝ eᵢ
-    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ (skip , g₀)
+    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (skip , g₀)
     → e₀ —→ e₀′
     → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e′ ↦ e″
+    → (p , a , g) ⊢ e′ →* e″
     → (p , a , g) ⊢ e ↦ e″
 
 data Type : Set where
@@ -385,3 +412,4 @@ data Type : Set where
 data Context : Set where
   ∅ : Context
   _,_∶_ : Context → Id → Type → Context
+
