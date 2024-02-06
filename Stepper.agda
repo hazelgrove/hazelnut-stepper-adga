@@ -177,8 +177,8 @@ strip (ƛ x ⇒ L) = ƛ x ⇒ L
 strip (L · M) = strip L · strip M
 strip (# x) = # x
 strip (L `+ M) = strip L `+ strip M
-strip (Φ x ⇐ L) = L
-strip (φ x ← L) = L
+strip (Φ x ⇐ L) = strip L
+strip (φ x ← L) = strip L
 
 instr₀ : Filter → Term → Term
 instr₀ (F , A,G) L with F matches? (strip L)
@@ -187,14 +187,14 @@ instr₀ (F , A,G) L with F matches? (strip L)
 ... | yes _ = L
 ... | no  _ = φ A,G ← L
 
-instr : Filter → Term → Term
-instr F (` x) = (` x)
-instr F (ƛ x ⇒ L) = (ƛ x ⇒ L)
-instr F (L · M) = instr₀ F ((instr F L) · (instr F M))
-instr F (# x) = (# x)
-instr F (L `+ M) = instr₀ F ((instr F L) `+ (instr F M))
-instr F (Φ F' ⇐ L) = instr F' (instr F L)
-instr F (φ x ← L) = instr F L
+-- instr : Filter → Term → Term
+-- instr F (` x) = (` x)
+-- instr F (ƛ x ⇒ L) = (ƛ x ⇒ L)
+-- instr F (L · M) = instr₀ F ((instr F L) · (instr F M))
+-- instr F (# x) = (# x)
+-- instr F (L `+ M) = instr₀ F ((instr F L) `+ (instr F M))
+-- instr F (Φ F' ⇐ L) = instr F' (instr F L)
+-- instr F (φ x ← L) = instr F L
 
 data Eval-Context : Set where
   ∘    : Eval-Context
@@ -236,11 +236,6 @@ data _＝_ : Term → EvalObject → Set where
     → e₂ ＝ ε ⟨ e₂′ ⟩
     → e₁ `+ e₂ ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩
 
-decompose : Term → List EvalObject
-decompose (` x) = (∘ ⟨ (` x) ⟩) ∷ []
-decompose (ƛ x ⇒ e) = []
-decompose (e₁ · e₂) = {!!}
-
 infix 1 _⊢_＝_⊣_
 
 data _⊢_＝_⊣_ : Act × Gas → Term → EvalObject → Act × Gas → Set where
@@ -260,7 +255,7 @@ data _⊢_＝_⊣_ : Act × Gas → Term → EvalObject → Act × Gas → Set w
     → (a , g) ⊢ (e₁ `+ e₂) ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
 
   FC-+ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
-    → (a , g) ⊢ e₁ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
+    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
     → (a , g) ⊢ (e₁ `+ e₂) ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩ ⊣ (a′ , g′)
 
   FC-Φ : ∀ {a g f e ε e′ a′ g′}
@@ -322,6 +317,10 @@ data _⊢_⇝_ : Filter → Term → Term → Set where
     → (p , a , g) ⊢ e ⇝ e′
     → (p₀ , a₀ , g₀) ⊢ Φ (p , a , g) ⇐ e₀ ⇝ e′
 
+  FI-φ : ∀ {p₀ a₀ g₀ a g e e′}
+    → (p₀ , a₀ , g₀) ⊢ e ⇝ e′
+    → (p₀ , a₀ , g₀) ⊢ (φ (a , g) ← e) ⇝ (φ (a , g) ← e′)
+
   FI-· : ∀ {p a g d₁ d₂ d₁′ d₂′}
     → (p , a , g) ⊢ d₁ ⇝ d₁′
     → (p , a , g) ⊢ d₂ ⇝ d₂′
@@ -376,34 +375,29 @@ data _⊢_→*_ : Filter → Term → Term → Set where
     → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (skip , g₀)
     → e₀ —→ e₀′
     → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e′ →* e″
+    → (p , a , g) ⊢ (strip e′) →* e″
     → (p , a , g) ⊢ e →* e″
 
 _ : (`e , skip , all) ⊢ ((# 1) `+ (# 2) `+ (# 3) `+ (# 4)) →* (# 10)
 _ =
   skip (FI-+ (FI-+ (FI-E FI-refl PM-`e) FI-refl) FI-refl) (FC-+ₗ (FC-+ₗ (FC-φ-all FC-∘))) β-+ (DC-+ₗ (DC-+ₗ (DC-φ DC-∘)))
-  {!!}
-  -- skip FI (FC-φ-all (FC-+ₗ (FC-φ-all (FC-+ₗ (FC-φ-all FC-∘))))) β-+ (DC-φ (DC-+ₗ (DC-φ (DC-+ₗ (DC-φ DC-∘)))))
-  -- (skip FI (FC-φ-all (FC-+ₗ (FC-φ-all FC-∘))) β-+ (DC-φ (DC-+ₗ (DC-φ DC-∘)))
-  -- (skip FI (FC-φ-all FC-∘) β-+ (DC-φ DC-∘) refl))
+  (skip (FI-+ (FI-E FI-refl PM-`e) FI-refl) (FC-+ₗ (FC-φ-all FC-∘)) β-+ (DC-+ₗ (DC-φ DC-∘))
+  (skip (FI-E FI-refl PM-`e) (FC-φ-all FC-∘) β-+ (DC-φ DC-∘) refl))
 
 _ : (`e , skip , all) ⊢ Φ (# 1 `+ # 2 , stop , one) ⇐ (# 1 `+ # 2) `+ (# 3 `+ # 4) →* ((# 1 `+ # 2) `+ # 7)
-_ = skip {!!} {!!} {!!} {!!} {!!}
+_ =
+  skip
+  (FI-+ (FI-E (FI-I (FI-E FI-refl PM-`e) (FI-φ (FI-E FI-refl (PM-+ PM-# PM-#)))) PM-`e) (FI-E FI-refl PM-`e))
+  (FC-+ᵣ (FC-φ-all FC-∘)) β-+ (DC-+ᵣ (DC-φ DC-∘))
+  refl
 
 data _⊢_↦_ : Filter → Term → Term → Set where
-  step : ∀ {p a g e eᵢ e₀ e₀′ ε e′ g₀}
+  step : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
+    → (p , a , g) ⊢ e′ →* e″
     → (p , a , g) ⊢ e ⇝ eᵢ
     → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (stop , g₀)
     → e₀ —→ e₀′
     → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e ↦ e′
-
-  skip : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
-    → (p , a , g) ⊢ e ⇝ eᵢ
-    → (a , g) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (skip , g₀)
-    → e₀ —→ e₀′
-    → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e′ →* e″
     → (p , a , g) ⊢ e ↦ e″
 
 data Type : Set where
