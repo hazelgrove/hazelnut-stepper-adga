@@ -1,446 +1,527 @@
 open import Data.String using (String; _≟_)
-open import Data.Nat using (ℕ; _+_; _>_; _≤_)
-open import Data.Product using (_,_; _×_)
-open import Data.List using (List; _∷_; [])
-open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
+open import Data.Nat using (ℕ; _+_; _≤_; _>_)
+open import Data.Product using (_,_; _×_; proj₁; proj₂)
+open import Data.Sum using (_⊎_)
+import Data.Irrelevant
+open import Relation.Nullary using (Dec; yes; no; ¬_)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; _≢_; refl; [_])
-open Eq.≡-Reasoning
+open Eq using (_≡_; refl; cong; _≢_)
+open import Function using (_↔_)
+
+data Act : Set where
+  eval : Act
+  pause : Act
+
+data Gas : Set where
+  one : Gas
+  all : Gas
 
 Id : Set
 Id = String
 
-Filter : Set
-
 data Pat : Set
-data Act : Set
-data Gas : Set
+data Exp : Set
 
-infix  5 ƛ_⇒_
-infix  5 μ_⇒_
-infix  5 φ_⟨_⟩
-infix  5 δ_⟨_⟩
-infixl 7 _·_
+infix 5 ƛ_⇒_
+infix 5 ƛ$x⇒_
+infix 5 φ_⇒_
+infix 5 δ_⇒_
 infixl 7 _`+_
-infix  9 #_
-infix  9 `_
-
-data Term : Set where
-  `_    : Id → Term
-  ƛ_⇒_ : Id → Term → Term
-  _·_   : Term → Term → Term
-  #_    : ℕ → Term
-  _`+_  : Term → Term → Term
-  φ_⟨_⟩ : Pat × Act × Gas → Term → Term
-  δ_⟨_⟩ : Act × Gas × ℕ   → Term → Term
-
-data Value : Term → Set where
-  V-ƛ : ∀ {x N}
-    → Value (ƛ x ⇒ N)
-
-  V-# : ∀ {n}
-    → Value (# n)
-
-Value? : ∀ (L : Term) → Dec (Value L)
-Value? (` x) = no λ ()
-Value? (ƛ x ⇒ L) = yes V-ƛ
-Value? (L · M) = no λ ()
-Value? (φ pag ⟨ L ⟩) = no λ ()
-Value? (δ ag ⟨ L ⟩) = no λ ()
-Value? (# n) = yes V-#
-Value? (L `+ M) = no λ ()
+infixl 8 _`·_
+infix 9 #_
+infix 9 `_
 
 data Pat where
-  `_  : Id → Pat
-  `e    : Pat
-  `v    : Pat
-  ƛ_⇒_ : Id → Term → Pat
-  _·_   : Pat → Pat → Pat
-  #_    : ℕ → Pat
-  _`+_  : Pat → Pat → Pat
+  $e     : Pat
+  $v     : Pat
+  `_     : Id → Pat
+  ƛ_⇒_  : Id → Exp → Pat
+  ƛ$x⇒_ : Exp → Pat
+  _`·_   : Pat → Pat → Pat
+  #_     : ℕ → Pat
+  _`+_   : Pat → Pat → Pat
 
-infix 1 _matches_
+data Exp where
+  `_     : Id → Exp
+  ƛ_⇒_  : Id → Exp → Exp
+  _`·_   : Exp → Exp → Exp
+  #_     : ℕ → Exp
+  _`+_   : Exp → Exp → Exp
+  φ_⇒_  : Pat × Act × Gas → Exp → Exp
+  δ_⇒_  : Act × Gas × ℕ   → Exp → Exp
 
-data _matches_ : Pat → Term → Set where
-  PM-e : ∀ {L}
-    → `e matches L
+data Value : Exp → Set where
+  V-# : ∀ {n : ℕ}
+    → Value (# n)
 
-  PM-v : ∀ {V}
-    → Value V
-    → `v matches V
+  V-ƛ : ∀ {x L}
+    → Value (ƛ x ⇒ L)
 
-  PM-· : ∀ {p₁ p₂ e₁ e₂}
-    → p₁ matches e₁
-    → p₂ matches e₂
-    → p₁ · p₂ matches e₁ · e₂
+value? : ∀ (e : Exp) → Dec (Value e)
+value? (` x) = no λ ()
+value? (ƛ x ⇒ e) = yes V-ƛ
+value? (e `· e₁) = no (λ ())
+value? (# x) = yes V-#
+value? (e `+ e₁) = no (λ ())
+value? (φ x ⇒ e) = no (λ ())
+value? (δ x ⇒ e) = no (λ ())
 
-  PM-# : ∀ {n}
-    → # n matches # n
+data Filter : Exp → Set where
+  F-Φ : ∀ {pag e}
+    → Filter (φ pag ⇒ e)
 
-  PM-+ : ∀ {p₁ p₂ e₁ e₂}
-    → p₁ matches e₁
-    → p₂ matches e₂
-    → p₁ `+ p₂ matches e₁ `+ e₂
+  F-Δ : ∀ {agl e}
+    → Filter (δ agl ⇒ e)
 
-_matches?_ : ∀ (P : Pat) (L : Term) → Dec (P matches L)
-(` _) matches? _ = no λ ()
-`e matches? L = yes PM-e
-`v matches? L with Value? L
-... | yes ValueL = yes (PM-v ValueL)
-... | no  ¬ValueL = no λ { (PM-v ValueL) → ¬ValueL ValueL }
+filter? : ∀ (e : Exp) → Dec (Filter e)
+filter? (` x) = no λ ()
+filter? (ƛ x ⇒ e) = no λ ()
+filter? (e `· e₁) = no λ ()
+filter? (# x) = no λ ()
+filter? (e `+ e₁) = no λ ()
+filter? (φ x ⇒ e) = yes F-Φ
+filter? (δ x ⇒ e) = yes F-Δ
 
-(ƛ _ ⇒ _) matches? _ = no λ ()
+data PatVal : Pat → Set where
+  PV-# : ∀ {n}
+    → PatVal (# n)
 
-(Pₗ · Pᵣ) matches? (Lₗ · Lᵣ) with (Pₗ matches? Lₗ) ×-dec (Pᵣ matches? Lᵣ)
-... | yes (PLₗ , PLᵣ) = yes (PM-· PLₗ PLᵣ)
-... | no  ¬PLₗᵣ = no λ { (PM-· PLₗ PLᵣ) → ¬PLₗᵣ (PLₗ , PLᵣ) }
-(_ · _) matches? (` _) = no λ ()
-(_ · _) matches? (ƛ _ ⇒ _) = no λ ()
-(_ · _) matches? (# _) = no λ ()
-(_ · _) matches? (_ `+ _) = no λ ()
-(_ · _) matches? (φ _ ⟨ L ⟩) = no λ ()
-(_ · _) matches? (δ _ ⟨ _ ⟩) = no λ ()
+  PV-ƛ : ∀ {x e}
+    → PatVal (ƛ x ⇒ e)
 
-(# P) matches? (# L) with P Data.Nat.≟ L
-... | yes refl = yes PM-#
-... | no  P≢P  = no λ { PM-# → P≢P refl }
-(# _) matches? (` _) = no λ ()
-(# _) matches? (ƛ _ ⇒ _) = no λ ()
-(# _) matches? (_ · _) = no λ ()
-(# _) matches? (_ `+ _) = no λ ()
-(# _) matches? (φ _ ⟨ _ ⟩) = no λ ()
-(# _) matches? (δ _ ⟨ _ ⟩) = no λ ()
+  PV-$ : ∀ {e}
+    → PatVal (ƛ$x⇒ e)
 
-(Pₗ `+ Pᵣ) matches? (Lₗ `+ Lᵣ) with (Pₗ matches? Lₗ) ×-dec (Pᵣ matches? Lᵣ)
-... | yes (PLₗ , PLᵣ) = yes (PM-+ PLₗ PLᵣ)
-... | no  ¬PLₗᵣ       = no λ { (PM-+ PLₗ PLᵣ) → ¬PLₗᵣ (PLₗ , PLᵣ) }
-(_ `+ _) matches? (` _) = no λ ()
-(_ `+ _) matches? (ƛ _ ⇒ _) = no λ ()
-(_ `+ _) matches? (_ · _) = no λ ()
-(_ `+ _) matches? (# _) = no λ ()
-(_ `+ _) matches? (φ _ ⟨ _ ⟩) = no λ ()
-(_ `+ _) matches? (δ _ ⟨ _ ⟩) = no λ ()
-
-_ : (`v `+ `v matches # 1 `+ # 2)
-_ = PM-+ (PM-v V-#) (PM-v V-#)
-
-_ : (`e `+ `e matches ((ƛ "x" ⇒ ` "x") · # 3) `+ (# 1 `+ # 2))
-_ = PM-+ PM-e PM-e
-
-data Act where
-  stop : Act
-  skip : Act
-
-data Gas where
-  one : Gas
-  all : Gas
-
-Filter = Pat × Act × Gas
-
-infix 9 _[_:=_]
-infix 9 _[_:=_]ᶠ
-
-patternize : Term → Pat
-patternize (` x) = ` x
-patternize (ƛ x ⇒ N) = ƛ x ⇒ N
-patternize (L · M) = patternize L · patternize M
-patternize (# n) = # n
-patternize (L `+ M) = patternize L `+ patternize M
-patternize (φ F ⟨ L ⟩) = patternize L
-patternize (δ AG ⟨ L ⟩) = patternize L
-
-_[_:=_]ᶠ : Pat → Id → Term → Pat
-_[_:=_]  : Term → Id → Term → Term
-
-(` x) [ y := V ]ᶠ with x ≟ y
-... | yes _ = patternize V
-... | no  _ = ` x
-`e [ y := V ]ᶠ = `e
-`v [ y := V ]ᶠ = `v
-(ƛ x ⇒ N) [ y := V ]ᶠ = ƛ x ⇒ (N [ y := V ])
-(Pₗ · Pᵣ) [ y := V ]ᶠ = Pₗ [ y := V ]ᶠ · Pᵣ [ y := V ]ᶠ
-(# n) [ y := V ]ᶠ = # n
-(Pₗ `+ Pᵣ) [ y := V ]ᶠ = Pₗ [ y := V ]ᶠ `+ Pᵣ [ y := V ]ᶠ
-
-(` x) [ y := V ] with x ≟ y
-... | yes _ = V
-... | no  _ = ` x
-(ƛ x ⇒ N) [ y := V ] with x ≟ y
-... | yes _         = ƛ x ⇒ N
-... | no  _         = ƛ x ⇒ N [ y := V ]
-(L · M) [ y := V ]  = L [ y := V ] · M [ y := V ]
-(# n) [ y := V ] = # n
-(L `+ M) [ y := V ] = L [ y := V ] `+ M [ y := V ]
-(φ (F , A,G) ⟨ N ⟩) [ y := V ] = φ (F [ y := V ]ᶠ , A,G) ⟨ (N [ y := V ]) ⟩
-(δ A,G ⟨ N ⟩) [ y := V ] = δ A,G ⟨ (N [ y := V ]) ⟩
-
-strip : Term → Term
+strip : Exp → Exp
 strip (` x) = ` x
-strip (ƛ x ⇒ L) = ƛ x ⇒ L
-strip (L · M) = strip L · strip M
-strip (# x) = # x
-strip (L `+ M) = strip L `+ strip M
-strip (φ x ⟨ L ⟩) = strip L
-strip (δ x ⟨ L ⟩) = strip L
+strip (ƛ x ⇒ L) = ƛ x ⇒ (strip L)
+strip (L `· M) = (strip L) `· (strip M)
+strip (# n) = # n
+strip (L `+ M) = (strip L) `+ (strip M)
+strip (φ x ⇒ L) = strip L
+strip (δ x ⇒ L) = strip L
 
--- instr₀ : Filter → Term → Term
--- instr₀ (F , A,G) L with F matches? (strip L)
--- ... | no  _ = L
--- ... | yes _ with Value? (strip L)
--- ... | yes _ = L
--- ... | no  _ = δ A,G ⟨ L ⟩
+patternize : Exp → Pat
+patternize (` x) = ` x
+patternize (ƛ x ⇒ L) = ƛ x ⇒ L
+patternize (L `· M) = (patternize L) `· (patternize M)
+patternize (# n) = # n
+patternize (L `+ M) = (patternize L) `+ (patternize M)
+patternize (φ x ⇒ L) = patternize L
+patternize (δ x ⇒ L) = patternize L
 
--- instr : Filter → Term → Term
--- instr F (` x) = (` x)
--- instr F (ƛ x ⇒ L) = (ƛ x ⇒ L)
--- instr F (L · M) = instr₀ F ((instr F L) · (instr F M))
--- instr F (# x) = (# x)
--- instr F (L `+ M) = instr₀ F ((instr F L) `+ (instr F M))
--- instr F (Φ F' ⇐ L) = instr F' (instr F L)
--- instr F (φ x ← L) = instr F L
+_⟨_:=_⟩ : Pat → Id → Exp → Pat
+_[_:=_] : Exp → Id → Exp → Exp
 
-data Eval-Context : Set where
-  ∘    : Eval-Context
-  _·ₗ_ : Eval-Context → Term → Eval-Context
-  _·ᵣ_ : Term → Eval-Context → Eval-Context
-  _+ₗ_ : Eval-Context → Term → Eval-Context
-  _+ᵣ_ : Term → Eval-Context → Eval-Context
-  φ_⟨_⟩ : Filter → Eval-Context → Eval-Context
-  δ_⟨_⟩ : Act × Gas × ℕ → Eval-Context → Eval-Context
+_⟨_:=_⟩ $e x V = $e
+_⟨_:=_⟩ $v x V = $v
+_⟨_:=_⟩ (` x) y V with (x ≟ y)
+... | yes _ = patternize V
+... | no  _ = (` x)
+_⟨_:=_⟩ (ƛ x ⇒ L) y V with (x ≟ y)
+... | yes _ = (ƛ x ⇒ L)
+... | no  _ = (ƛ x ⇒ (L [ y := V ]))
+_⟨_:=_⟩ (ƛ$x⇒ L) x V = ƛ$x⇒ (L [ x := V ])
+_⟨_:=_⟩ (L `· M) x V = (L ⟨ x := V ⟩) `· (M ⟨ x := V ⟩)
+_⟨_:=_⟩ (# n) x V = # n
+_⟨_:=_⟩ (L `+ M) x V = (L ⟨ x := V ⟩) `+ (M ⟨ x := V ⟩)
 
-infix 2 _⟨_⟩
+_[_:=_] (` x) y V with (x ≟ y)
+... | yes _ = V
+... | no  _ = (` x)
+_[_:=_] (ƛ x ⇒ L) y V with (x ≟ y)
+... | yes _ = (ƛ x ⇒ L)
+... | no  _ = (ƛ x ⇒ (L [ y := V ]))
+_[_:=_] (L `· M) x V = (L [ x := V ]) `· (M [ x := V ])
+_[_:=_] (# n) x V = # n
+_[_:=_] (L `+ M) x V = (L [ x := V ]) `+ (M [ x := V ])
+_[_:=_] (φ (p , a , g) ⇒ L) y V = φ (p ⟨ y := V ⟩) , a , g ⇒ L [ y := V ]
+_[_:=_] (δ x ⇒ L) y V = δ x ⇒ L [ y := V ]
 
-data Object : Set where
-  _⟨_⟩ : Eval-Context → Term → Object
+infix 4 _⊳_
 
-infix 1 _＝_
+data _⊳_ : Pat → Exp → Set where
+  M-Δ : ∀ {p agl e}
+    → p ⊳ e
+    → p ⊳ (δ agl ⇒ e)
 
-data _＝_ : Term → Object → Set where
-  DC-∘ : ∀ {e}
-    → e ＝ ∘ ⟨ e ⟩
+  M-Φ : ∀ {p pag e}
+    → p ⊳ e
+    → p ⊳ (φ pag ⇒ e)
 
-  DC-·ₗ : ∀ {e₁ e₂ ε e₁′}
-    → e₁ ＝ ε ⟨ e₁′ ⟩
-    → e₁ · e₂ ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩
+  M-E : ∀ {e}
+    → $e ⊳ e
 
-  DC-·ᵣ : ∀ {e₁ e₂ ε e₂′}
-    → e₂ ＝ ε ⟨ e₂′ ⟩
-    → e₁ · e₂ ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩
-
-  DC-φ : ∀ {a g l e ε e′}
-    → e ＝ ε ⟨ e′ ⟩
-    → (δ (a , g , l) ⟨ e ⟩) ＝ (δ (a , g , l) ⟨ ε ⟩) ⟨ e′ ⟩
-
-  DC-+ₗ : ∀ {e₁ e₂ ε e₁′}
-    → e₁ ＝ ε ⟨ e₁′ ⟩
-    → e₁ `+ e₂ ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩
-
-  DC-+ᵣ : ∀ {e₁ e₂ ε e₂′}
-    → e₂ ＝ ε ⟨ e₂′ ⟩
-    → e₁ `+ e₂ ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩
-
-infix 1 _⊢_＝_⊣_
-
-data _⊢_＝_⊣_ : Act × Gas × ℕ → Term → Object → Act × Gas → Set where
-  FC-∘ : ∀ {a g l e} → (a , g , l) ⊢ e ＝ ∘ ⟨ e ⟩ ⊣ (a , g)
-
-  FC-·ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
-    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⊣ (a′ , g′)
-    → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
-
-  FC-·ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
-    → Value e₁
-    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
-    → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ ⊣ (a′ , g′)
-
-  FC-+ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
-    → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⊣ (a′ , g′)
-    → (a , g) ⊢ (e₁ `+ e₂) ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
-
-  FC-+ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
-    → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ ⊣ (a′ , g′)
-    → (a , g) ⊢ (e₁ `+ e₂) ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩ ⊣ (a′ , g′)
-
-  FC-Φ : ∀ {a g f e ε e′ a′ g′}
-    → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-    → (a , g) ⊢ (φ f ⟨ e ⟩) ＝ (φ f ⟨ ε ⟩) ⟨ e′ ⟩ ⊣ (a′ , g′)
-
-  FC-Δ₁-> : ∀ {a₀ g₀ l₀ a l e ε e′ a′ g′}
-    → l > l₀
-    → (a , one , l) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-    → (a₀ , g₀ , l₀) ⊢ (δ (a , one , l) ⟨ e ⟩) ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-
-  FC-Δ₁-≤ : ∀ {a₀ g₀ l₀ a l e ε e′ a′ g′}
-    → l ≤ l₀
-    → (a₀ , one , l₀) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-    → (a₀ , g₀ , l₀) ⊢ (δ (a , one , l) ⟨ e ⟩) ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-
-  FC-Δₙ-> : ∀ {a₀ g₀ l₀ a l e ε e′ a′ g′}
-    → l > l₀
-    → (a , all , l) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-    → (a₀ , g₀ , l₀) ⊢ (δ (a , all , l) ⟨ e ⟩) ＝ (δ (a , all , l) ⟨ ε ⟩) ⟨ e′ ⟩ ⊣ (a′ , g′)
-
-  FC-Δₙ-≤ : ∀ {a₀ g₀ l₀ a l e ε e′ a′ g′}
-    → l ≤ l₀
-    → (a₀ , all , l₀) ⊢ e ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-    → (a₀ , g₀ , l₀) ⊢ (δ (a , all , l) ⟨ e ⟩) ＝ ε ⟨ e′ ⟩ ⊣ (a′ , g′)
-
--- data _⊢_＝_⇝_⊣_ : Act × Gas → Term → Object → Object → Act × Gas → Set where
---   FC-∘ : ∀ {a g e} → (a , g) ⊢ e ＝ ∘ ⟨ e ⟩ ⇝ φ (a , g) ← ∘ ⟨ e ⟩ ⊣ (a , g)
-
---   FC-·ₗ : ∀ {a g e₁ e₂ e₁′ ε ε′ a′ g′}
---     → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ ⇝ ε′ ⟨ e₁′ ⟩ ⊣ (a′ , g′)
---     → (a , g) ⊢ (e₁ · e₂) ＝ (ε ·ₗ e₂) ⟨ e₁′ ⟩ ⇝ (ε′ ·ₗ e₂) ⟨ e₁′ ⟩ ⊣ (a′ , g′)
-
---   FC-·ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
---     → Value e₁
---     → (a , g) ⊢ e₂ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
---     → (a , g) ⊢ (e₁ · e₂) ＝ (e₁ ·ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
-
---   FC-+ₗ : ∀ {a g e₁ e₂ e₁′ ε a′ g′}
---     → (a , g) ⊢ e₁ ＝ ε ⟨ e₁′ ⟩ (a′ , g′)
---     → (a , g) ⊢ (e₁ `+ e₂) ＝ (ε +ₗ e₂) ⟨ e₁′ ⟩ (a′ , g′)
-
---   FC-+ᵣ : ∀ {a g e₁ e₂ e₂′ ε a′ g′}
---     → (a , g) ⊢ e₁ ＝ ε ⟨ e₂′ ⟩ (a′ , g′)
---     → (a , g) ⊢ (e₁ `+ e₂) ＝ (e₁ +ᵣ ε) ⟨ e₂′ ⟩ (a′ , g′)
-
---   FC-Φ : ∀ {a g f e ε e′ a′ g′}
---     → (a , g) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
---     → (a , g) ⊢ (Φ f ⇐ e) ＝ (Φ f ⇐ ε) ⟨ e′ ⟩ (a′ , g′)
-
---   FC-φ-one : ∀ {a₀ g₀ a e ε e′ a′ g′}
---     → (a , one) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
---     → (a₀ , g₀) ⊢ (φ (a , one) ← e) ＝ ε ⟨ e′ ⟩ (a′ , g′)
-
---   FC-φ-all : ∀ {a₀ g₀ a e ε e′ a′ g′}
---     → (a , all) ⊢ e ＝ ε ⟨ e′ ⟩ (a′ , g′)
---     → (a₀ , g₀) ⊢ (φ (a , all) ← e) ＝ (φ (a , all) ← ε) ⟨ e′ ⟩ (a′ , g′)
-
-
-infix 4 _—→_
-
-data _—→_ : Term → Term → Set where
-  ξ-·ₗ : ∀ {L L′ M}
-    → L —→ L′
-    → L · M —→ L′ · M
-
-  ξ-·ᵣ : ∀ {V M M′}
-    → Value V
-    → M —→ M′
-    → V · M —→ V · M′
-
-  β-ƛ : ∀ {x N V}
-    → Value V
-    → (ƛ x ⇒ N) · V —→ N [ x := V ]
-
-  ξ-Φ : ∀ {F L L′}
-    → L —→ L′
-    → φ F ⟨ L ⟩ —→ φ F ⟨ L′ ⟩
-
-  β-Φ : ∀ {F V}
-    → Value V
-    → φ F ⟨ V ⟩ —→ V
-
-  ξ-φ : ∀ {A,G L L′}
-    → L —→ L′
-    → (δ A,G ⟨ L ⟩) —→ L′
-
-  β-φ : ∀ {A,G V}
-    → Value V
-    → (δ A,G ⟨ V ⟩) —→ V
-
-  β-+ : ∀ {n₁ n₂}
-    → (# n₁) `+ (# n₂) —→ # (n₁ + n₂)
-
-data _⊢_⇝_ : Pat × Act × Gas × ℕ → Term → Term → Set where
-  FI-V : ∀ {p a g l v}
+  M-V : ∀ {v}
     → Value v
-    → (p , a , g , l) ⊢ v ⇝ v
+    → $v ⊳ v
 
-  FI-`-⊤ : ∀ {p a g l x e}
-    → ` x —→ e
-    → p matches (` x)
-    → (p , a , g , l) ⊢ (` x) ⇝ (δ (a , g , l) ⟨ ` x ⟩)
+  M-· : ∀ {pₗ pᵣ eₗ eᵣ}
+    → pₗ ⊳ eₗ
+    → pᵣ ⊳ eᵣ
+    → (pₗ `· pᵣ) ⊳ (eₗ `· eᵣ)
 
-  FI-`-⊥ : ∀ {p a g x e}
-    → ` x —→ e
-    → ¬ (p matches (` x))
-    → (p , a , g) ⊢ (` x) ⇝ (` x)
+  M-+ : ∀ {pₗ pᵣ eₗ eᵣ}
+    → pₗ ⊳ eₗ
+    → pᵣ ⊳ eᵣ
+    → (pₗ `+ pᵣ) ⊳ (eₗ `+ eᵣ)
 
-  FI-Φ : ∀ {p₀ a₀ g₀ l₀ p a g e e′ e″ eₜ}
-    → e —→ eₜ
-    → (p₀ , a₀ , g₀ , l₀) ⊢ e ⇝ e′
-    → (p , a , g , (l₀ + 1)) ⊢ e′ ⇝ e″
-    → (p₀ , a₀ , g₀ , l₀) ⊢ φ (p , a , g) ⟨ e ⟩ ⇝ φ (p , a , g) ⟨ e″ ⟩
+  M-ƛ : ∀ {xₚ eₚ xₑ eₑ}
+    → xₚ ≡ xₑ
+    → strip eₚ ≡ strip eₑ
+    → (ƛ xₚ ⇒ eₚ) ⊳ (ƛ xₑ ⇒ eₑ)
 
-  FI-Δ : ∀ {p₀ a₀ g₀ a g e eₜ e′}
-    → e —→ eₜ
-    → (p₀ , a₀ , g₀) ⊢ e ⇝ e′
-    → (p₀ , a₀ , g₀) ⊢ δ (a , g) ⟨ e ⟩ ⇝ (δ (a , g) ⟨ e′ ⟩)
+  M-$ : ∀ {eₚ xₑ eₑ}
+    → eₚ ≡ eₑ
+    → (ƛ$x⇒ eₚ) ⊳ (ƛ xₑ ⇒ eₑ)
 
-  FI-·-⊤ : ∀ {p a g eₗ eᵣ eₗ′ eᵣ′}
-    → p matches (eₗ · eᵣ)
-    → (p , a , g) ⊢ eₗ ⇝ eₗ′
-    → (p , a , g) ⊢ eᵣ ⇝ eᵣ′
-    → (p , a , g) ⊢ (eₗ · eᵣ) ⇝ δ (a , g) ⟨ (eₗ′ · eᵣ′) ⟩
+infix 0 _—→_
 
-  FI-·-⊥ : ∀ {p a g eₗ eᵣ eₗ′ eᵣ′}
-    → ¬ (p matches (eₗ · eᵣ))
-    → (p , a , g) ⊢ eₗ ⇝ eₗ′
-    → (p , a , g) ⊢ eᵣ ⇝ eᵣ′
-    → (p , a , g) ⊢ (eₗ · eᵣ) ⇝ (eₗ′ · eᵣ′)
+data _—→_ : Exp → Exp → Set where
+  ξ-·ₗ : ∀ {eₗ eᵣ eₗ′}
+    → eₗ —→ eₗ′
+    → eₗ `· eᵣ —→ eₗ′ `· eᵣ
 
-  FI-+-⊤ : ∀ {p a g eₗ eᵣ eₗ′ eᵣ′}
-    → p matches (eₗ `+ eᵣ)
-    → (p , a , g) ⊢ eₗ ⇝ eₗ′
-    → (p , a , g) ⊢ eᵣ ⇝ eᵣ′
-    → (p , a , g) ⊢ (eₗ `+ eᵣ) ⇝ δ (a , g) ⟨ (eₗ′ `+ eᵣ′) ⟩
+  ξ-·ᵣ : ∀ {eᵣ vₗ eᵣ′}
+    → Value vₗ
+    → eᵣ —→ eᵣ′
+    → vₗ `· eᵣ —→ vₗ `· eᵣ′
 
-  FI-+-⊥ : ∀ {p a g eₗ eᵣ eₗ′ eᵣ′}
-    → ¬ (p matches (eₗ `+ eᵣ))
-    → (p , a , g) ⊢ eₗ ⇝ eₗ′
-    → (p , a , g) ⊢ eᵣ ⇝ eᵣ′
-    → (p , a , g) ⊢ (eₗ `+ eᵣ) ⇝ (eₗ′ `+ eᵣ′)
+  β-· : ∀ {vᵣ x eₓ}
+    → Value vᵣ
+    → (ƛ x ⇒ eₓ) `· vᵣ —→ (eₓ [ x := vᵣ ])
 
-data _⊢_→*_ : Filter → Term → Term → Set where
-  refl : ∀ {p a g e}
-    → (p , a , g) ⊢ e →* e
-    
-  skip : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
-    → (p , a , g , 0) ⊢ e ⇝ eᵢ
-    → (a , g , 0) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (skip , g₀)
-    → e₀ —→ e₀′
-    → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e′ →* e″
-    → (p , a , g) ⊢ e →* e″
+  ξ-+ₗ : ∀ {eₗ eᵣ eₗ′}
+    → eₗ —→ eₗ′
+    → eₗ `+ eᵣ —→ eₗ′ `+ eᵣ
 
--- _ : (`e , skip , all) ⊢ ((# 1) `+ (# 2) `+ (# 3) `+ (# 4)) →* (# 10)
--- _ = skip (FI-+-⊤ PM-e (FI-+-⊤ PM-e (FI-+-⊤ PM-e (FI-V V-#) (FI-V V-#)) (FI-V V-#)) (FI-V V-#)) (FC-δ-all (FC-+ₗ (FC-δ-all (FC-+ₗ (FC-δ-all FC-∘))))) β-+ {!DC-!} {!!}
---     skip (FI-+ (FI-+ (FI-E FI-refl PM-e) FI-refl) FI-refl) (FC-+ₗ (FC-+ₗ (FC-φ-all FC-∘))) β-+ (DC-+ₗ (DC-+ₗ (DC-φ DC-∘)))
---     (skip (FI-+ (FI-E FI-refl PM-e) FI-refl) (FC-+ₗ (FC-φ-all FC-∘)) β-+ (DC-+ₗ (DC-φ DC-∘))
---     (skip (FI-E FI-refl PM-e) (FC-φ-all FC-∘) β-+ (DC-φ DC-∘) refl))
+  ξ-+ᵣ : ∀ {eᵣ vₗ eᵣ′}
+    → Value vₗ
+    → eᵣ —→ eᵣ′
+    → vₗ `+ eᵣ —→ vₗ `+ eᵣ′
 
--- _ : (`e , skip , all) ⊢ φ (# 1 `+ # 2 , stop , one) ⇒ (# 1 `+ # 2) `+ (# 3 `+ # 4) →* ((# 1 `+ # 2) `+ # 7)
--- _ =
---   skip
---   (FI-+ (FI-E (FI-I (FI-E FI-refl PM-e) (FI-φ (FI-E FI-refl (PM-+ PM-# PM-#)))) PM-e) (FI-E FI-refl PM-e))
---   (FC-+ᵣ (FC-φ-all FC-∘)) β-+ (DC-+ᵣ (DC-φ DC-∘))
---   refl
+  β-+ : ∀ {vᵣ x eₓ}
+    → Value vᵣ
+    → (ƛ x ⇒ eₓ) `+ vᵣ —→ (eₓ [ x := vᵣ ])
 
-data _⊢_↦_ : Filter → Term → Term → Set where
-  step : ∀ {p a g e eᵢ e₀ e₀′ ε e′ e″ g₀}
-    → (p , a , g) ⊢ e′ →* e″
-    → (p , a , g , 0) ⊢ e ⇝ eᵢ
-    → (a , g , 0) ⊢ eᵢ ＝ ε ⟨ e₀ ⟩ ⊣ (stop , g₀)
-    → e₀ —→ e₀′
-    → e′ ＝ ε ⟨ e₀′ ⟩
-    → (p , a , g) ⊢ e ↦ e″
+  ξ-φ : ∀ {pag e e′}
+    → e —→ e′
+    → (φ pag ⇒ e) —→ (φ pag ⇒ e′)
 
-data Type : Set where
-  _⇒_ : Type → Type → Type
+  β-φ : ∀ {pag v}
+    → Value v
+    → (φ pag ⇒ v) —→ v
 
-data Context : Set where
-  ∅ : Context
-  _,_∶_ : Context → Id → Type → Context
+  ξ-δ : ∀ {agl e e′}
+    → e —→ e′
+    → (δ agl ⇒ e) —→ (δ agl ⇒ e′)
 
+  β-δ : ∀ {agl v}
+    → Value v
+    → (φ agl ⇒ v) —→ v
+
+data Ctx : Set where
+  ∘     : Ctx
+  _·ₗ_  : Ctx → Exp → Ctx
+  _·ᵣ_  : Exp → Ctx → Ctx
+  _+ₗ_  : Ctx → Exp → Ctx
+  _+ᵣ_  : Exp → Ctx → Ctx
+  φ_⇒_ : Pat × Act × Gas → Ctx → Ctx
+  δ_⇒_ : Act × Gas × ℕ → Ctx → Ctx
+
+data _⇒_⟨_⟩ : Exp → Ctx → Exp → Set where
+  D-β-` : ∀ {x}
+    → (` x) ⇒ ∘ ⟨ (` x) ⟩
+
+  D-ξ-·ₗ : ∀ {eₗ eᵣ ℰ eₗ′}
+    → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
+    → (eₗ `· eᵣ) ⇒ (ℰ ·ₗ eᵣ) ⟨ eₗ′ ⟩
+
+  D-ξ-·ᵣ : ∀ {eₗ eᵣ ℰ eᵣ′}
+    → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
+    → (eₗ `· eᵣ) ⇒ (eₗ ·ᵣ ℰ) ⟨ eᵣ′ ⟩
+
+  D-β-· : ∀ {vₗ vᵣ ℰ}
+    → Value vₗ
+    → Value vᵣ
+    → (vₗ `· vᵣ) ⇒ ℰ ⟨ vₗ `· vᵣ ⟩
+
+  D-ξ-+ₗ : ∀ {eₗ eᵣ ℰ eₗ′}
+    → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
+    → (eₗ `+ eᵣ) ⇒ (ℰ +ₗ eᵣ) ⟨ eₗ′ ⟩
+
+  D-ξ-+ᵣ : ∀ {eₗ eᵣ ℰ eᵣ′}
+    → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
+    → (eₗ `+ eᵣ) ⇒ (eₗ +ᵣ ℰ) ⟨ eᵣ′ ⟩
+
+  D-β-+ : ∀ {vₗ vᵣ ℰ}
+    → Value vₗ
+    → Value vᵣ
+    → (vₗ `+ vᵣ) ⇒ ℰ ⟨ vₗ `+ vᵣ ⟩
+
+  D-ξ-φ : ∀ {pag e ℰ e′}
+    → e ⇒ ℰ ⟨ e′ ⟩
+    → (φ pag ⇒ e) ⇒ (φ pag ⇒ ℰ) ⟨ e′ ⟩
+
+  D-β-φ : ∀ {pag v ℰ}
+    → Value v
+    → (φ pag ⇒ v) ⇒ ℰ ⟨ φ pag ⇒ v ⟩
+
+  D-ξ-δ : ∀ {agl e ℰ e′}
+    → e ⇒ ℰ ⟨ e′ ⟩
+    → (δ agl ⇒ e) ⇒ (δ agl ⇒ ℰ) ⟨ e′ ⟩
+
+  D-β-δ : ∀ {agl v ℰ}
+    → Value v
+    → (δ agl ⇒ v) ⇒ ℰ ⟨ δ agl ⇒ v ⟩
+
+data _⇐_⟨_⟩ : Exp → Ctx → Exp → Set where
+  C-∘ : ∀ {e}
+    → e ⇐ ∘ ⟨ e ⟩
+
+  C-·ₗ : ∀ {εₗ eᵣ eₗ e}
+    → eₗ ⇐ εₗ ⟨ e ⟩
+    → (eₗ `· eᵣ) ⇐ (εₗ ·ₗ eᵣ) ⟨ e ⟩
+
+  C-·ᵣ : ∀ {eₗ εᵣ eᵣ e}
+    → eᵣ ⇐ εᵣ ⟨ e ⟩
+    → (eₗ `· eᵣ) ⇐ (eₗ ·ᵣ εᵣ) ⟨ e ⟩
+
+  C-+ₗ : ∀ {εₗ eᵣ eₗ e}
+    → eₗ ⇐ εₗ ⟨ e ⟩
+    → (eₗ `+ eᵣ) ⇐ (εₗ +ₗ eᵣ) ⟨ e ⟩
+
+  C-+ᵣ : ∀ {eₗ εᵣ eᵣ e}
+    → eᵣ ⇐ εᵣ ⟨ e ⟩
+    → (eₗ `+ eᵣ) ⇐ (eₗ +ᵣ εᵣ) ⟨ e ⟩
+
+  C-φ : ∀ {pag ε e e′}
+    → e′ ⇐ ε ⟨ e ⟩
+    → (φ pag ⇒ e′) ⇐ (φ pag ⇒ ε) ⟨ e ⟩
+
+  C-δ : ∀ {agl ε e e′}
+    → e′ ⇐ ε ⟨ e ⟩
+    → (δ agl ⇒ e′) ⇐ (δ agl ⇒ ε) ⟨ e ⟩
+
+data _⊢_⇝_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
+  I-V : ∀ {pagl v}
+    → Value v
+    → pagl ⊢ v ⇝ v
+
+  I-`-⊤ : ∀ {p a g l x}
+    → p ⊳ (` x)
+    → (p , a , g , l) ⊢ (` x) ⇝ (δ (a , g , l) ⇒ (` x))
+
+  I-`-⊥ : ∀ {p a g l x}
+    → ¬ (p ⊳ (` x))
+    → (p , a , g , l) ⊢ (` x) ⇝ (` x)
+
+  I-·-⊤ : ∀ {p a g l eₗ eᵣ eₗ′ eᵣ′}
+    → p ⊳ (eₗ `· eᵣ)
+    → (p , a , g , l) ⊢ eₗ ⇝ eₗ′
+    → (p , a , g , l) ⊢ eᵣ ⇝ eᵣ′
+    → (p , a , g , l) ⊢ (eₗ `· eᵣ) ⇝ (δ (a , g , l) ⇒ (eₗ′ `· eᵣ′))
+
+  I-·-⊥ : ∀ {p a g l eₗ eᵣ eₗ′ eᵣ′}
+    → ¬ (p ⊳ (eₗ `· eᵣ))
+    → (p , a , g , l) ⊢ eₗ ⇝ eₗ′
+    → (p , a , g , l) ⊢ eᵣ ⇝ eᵣ′
+    → (p , a , g , l) ⊢ (eₗ `· eᵣ) ⇝ (eₗ′ `· eᵣ′)
+
+  I-+-⊤ : ∀ {p a g l eₗ eᵣ eₗ′ eᵣ′}
+    → p ⊳ (eₗ `+ eᵣ)
+    → (p , a , g , l) ⊢ eₗ ⇝ eₗ′
+    → (p , a , g , l) ⊢ eᵣ ⇝ eᵣ′
+    → (p , a , g , l) ⊢ (eₗ `+ eᵣ) ⇝ (δ (a , g , l) ⇒ (eₗ′ `+ eᵣ′))
+
+  I-+-⊥ : ∀ {p a g l eₗ eᵣ eₗ′ eᵣ′}
+    → ¬ (p ⊳ (eₗ `+ eᵣ))
+    → (p , a , g , l) ⊢ eₗ ⇝ eₗ′
+    → (p , a , g , l) ⊢ eᵣ ⇝ eᵣ′
+    → (p , a , g , l) ⊢ (eₗ `+ eᵣ) ⇝ (eₗ′ `+ eᵣ′)
+
+  I-Φ : ∀ {pat act gas lvl p a g e e′ e″}
+    → (pat , act , gas , lvl) ⊢ e ⇝ e′
+    → (p , a , g , ℕ.suc lvl) ⊢ e′ ⇝ e″
+    → (pat , act , gas , lvl) ⊢ (φ (p , a , g) ⇒ e) ⇝ (φ (p , a , g) ⇒ e″)
+
+  I-Δ : ∀ {pat act gas lvl a g l e e′}
+    → (pat , act , gas , lvl) ⊢ e ⇝ e′
+    → (pat , act , gas , lvl) ⊢ (δ (a , g , l) ⇒ e) ⇝ (δ (a , g , l) ⇒ e′)
+
+data _⊢_⇝_⊣_ : Act × ℕ → Ctx → Ctx → Act → Set where
+  A-∘ : ∀ {act lvl}
+    → (act , lvl) ⊢ ∘ ⇝ ∘ ⊣ act
+
+  A-·-l : ∀ {act lvl εₗ εₗ′ eᵣ act′}
+    → (act , lvl) ⊢ εₗ ⇝ εₗ′ ⊣ act′
+    → (act , lvl) ⊢ (εₗ ·ₗ eᵣ) ⇝ (εₗ′ ·ₗ eᵣ) ⊣ act′
+
+  A-·-r : ∀ {act lvl eₗ εᵣ εᵣ′ act′}
+    → (act , lvl) ⊢ εᵣ ⇝ εᵣ′ ⊣ act′
+    → (act , lvl) ⊢ (eₗ ·ᵣ εᵣ) ⇝ (eₗ ·ᵣ εᵣ′) ⊣ act′
+
+  A-+-l : ∀ {act lvl εₗ εₗ′ eᵣ act′}
+    → (act , lvl) ⊢ εₗ ⇝ εₗ′ ⊣ act′
+    → (act , lvl) ⊢ (εₗ +ₗ eᵣ) ⇝ (εₗ′ +ₗ eᵣ) ⊣ act′
+
+  A-+-r : ∀ {act lvl eₗ εᵣ εᵣ′ act′}
+    → (act , lvl) ⊢ εᵣ ⇝ εᵣ′ ⊣ act′
+    → (act , lvl) ⊢ (eₗ +ᵣ εᵣ) ⇝ (eₗ +ᵣ εᵣ′) ⊣ act′
+
+  A-Φ : ∀ {act lvl ε ε′ act′ pag}
+    → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ φ pag ⇒ ε ⇝ φ pag ⇒ ε′ ⊣ act′
+
+  A-Δ-1-> : ∀ {act lvl ε ε′ act′ a l}
+    → l > lvl
+    → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , one , l) ⇒ ε ⇝ ε′ ⊣ act′
+
+  A-Δ-1-≤ : ∀ {act lvl ε ε′ act′ a l}
+    → l ≤ lvl
+    → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , one , l) ⇒ ε ⇝ ε′ ⊣ act′
+
+  A-Δ-∀-> : ∀ {act lvl ε ε′ act′ a l}
+    → l > lvl
+    → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , all , l) ⇒ ε ⇝ δ (a , all , l) ⇒ ε′ ⊣ act′
+
+  A-Δ-∀-≤ : ∀ {act lvl ε ε′ act′ a l}
+    → l ≤ lvl
+    → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , all , l) ⇒ ε ⇝ δ (a , all , l) ⇒ ε′ ⊣ act′
+
+data _⊢_⇝_⟨_⟩⊣_ : Pat × Act × Gas × ℕ → Exp → Ctx → Exp → Act → Set where
+  T : ∀ {p a g l e eᵢ ε₀ ε₁ e₀ a₁}
+    → (p , a , g , l) ⊢ e ⇝ eᵢ
+    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+    → (a , l) ⊢ ε₀ ⇝ ε₁ ⊣ a₁
+    → (p , a , g , l) ⊢ e ⇝ ε₁ ⟨ e₀ ⟩⊣ a₁
+
+data _→*_ : Exp → Exp → Set where
+  relf : ∀ {e}
+    → e →* e
+
+  Φ/Δ : ∀ {e e′ e₀ ε₁ a₁ eₜ e₁}
+    → e →* e′
+    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ a₁
+    → Filter e₀
+    → e₀ —→ eₜ
+    → e₁ ⇐ ε₁ ⟨ eₜ ⟩
+    → e →* e₁
+
+  skip : ∀ {e e′ e₀ ε₁ e₁ eₜ}
+    → e →* e′
+    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ eval
+    → e₀ —→ eₜ
+    → e₁ ⇐ ε₁ ⟨ eₜ ⟩
+    → e →* e₁
+
+infix 0 _⇥_
+
+data _⇥_ : Exp → Exp → Set where
+  pause : ∀ {e e′ e₀ ε₁ e₁ eₜ}
+    → e →* e′
+    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ pause
+    → e₀ —→ eₜ
+    → e₁ ⇐ ε₁ ⟨ eₜ ⟩
+    → e ⇥ e₁
+
+infixr 7 _⇒_
+
+data Typ : Set where
+  _⇒_ : Typ → Typ → Typ
+  `ℕ   : Typ
+
+infixl 5 _,_∶_
+
+data TypCtx : Set where
+  ∅     : TypCtx
+  _,_∶_ : TypCtx → Id → Typ → TypCtx
+
+infix 4 _∋_∶_
+
+data _∋_∶_ : TypCtx → Id → Typ → Set where
+  Z : ∀ {Γ x τ}
+    → Γ , x ∶ τ ∋ x ∶ τ
+
+  S : ∀ {Γ x₁ x₂ τ₁ τ₂}
+    → x₁ ≢ x₂
+    → Γ ∋ x₁ ∶ τ₁
+    → Γ , x₂ ∶ τ₂ ∋ x₁ ∶ τ₁
+
+infix 4 _⊢_∶_
+infix 5 _⊢_∻_
+
+data _⊢_∶_ : TypCtx → Exp → Typ → Set
+data _⊢_∻_ : TypCtx → Pat → Typ → Set
+
+data _⊢_∶_ where
+  ⊢-` : ∀ {Γ x τ}
+    → Γ ∋ x ∶ τ
+    → Γ ⊢ ` x ∶ τ
+
+  ⊢-ƛ : ∀ {Γ x e τₓ τₑ}
+    → Γ , x ∶ τₓ ⊢ e ∶ τₑ
+    → Γ ⊢ (ƛ x ⇒ e) ∶ (τₓ ⇒ τₑ)
+
+  ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
+    → Γ ⊢ e₁ ∶ (τ₂ ⇒ τ₁)
+    → Γ ⊢ e₂ ∶ τ₂
+    → Γ ⊢ (e₁ `· e₂) ∶ τ₁
+
+  ⊢-# : ∀ {Γ n}
+    → Γ ⊢ (# n) ∶ `ℕ
+
+  ⊢-φ : ∀ {Γ p τₚ ag e τₑ}
+    → Γ ⊢ p ∻ τₚ
+    → Γ ⊢ e ∶ τₑ
+    → Γ ⊢ φ (p , ag) ⇒ e ∶ τₑ
+
+  ⊢-δ : ∀ {Γ agl e τ}
+    → Γ ⊢ e ∶ τ
+    → Γ ⊢ δ agl ⇒ e ∶ τ
+
+data _⊢_∻_ where
+  ⊢-e : ∀ {Γ τ}
+    → Γ ⊢ $e ∻ τ
+
+  ⊢-v : ∀ {Γ τ}
+    → Γ ⊢ $v ∻ τ
+
+  ⊢-` : ∀ {Γ x τ}
+    → Γ ∋ x ∶ τ
+    → Γ ⊢ ` x ∻ τ
+
+  ⊢-ƛ : ∀ {Γ x e τₓ τₑ}
+    → Γ , x ∶ τₓ ⊢ e ∶ τₑ
+    → Γ ⊢ ƛ x ⇒ e ∻ (τₓ ⇒ τₑ)
+
+  ⊢-$ : ∀ {Γ τₓ e τₑ}
+    → Γ ⊢ e ∶ τₑ
+    → Γ ⊢ ƛ$x⇒ e ∻ (τₓ ⇒ τₑ)
+
+  ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
+    → Γ ⊢ e₁ ∻ τ₂ ⇒ τ₁
+    → Γ ⊢ e₂ ∻ τ₂
+    → Γ ⊢ (e₁ `· e₂) ∻ τ₁
+
+  ⊢-# : ∀ {Γ n}
+    → Γ ⊢ (# n) ∻ `ℕ
+
+  ⊢-+ : ∀ {Γ e₁ e₂}
+    → Γ ⊢ e₁ ∻ `ℕ
+    → Γ ⊢ e₂ ∻ `ℕ
+    → Γ ⊢ (e₁ `+ e₂) ∻ `ℕ
+
+match-is-well-typed : ∀ {Γ p e τₚ τₑ} → p ⊳ e → (Γ ⊢ p ∻ τₚ) × (Γ ⊢ e ∶ τₑ)
+match-is-well-typed (M-Δ PM) = proj₁ (match-is-well-typed PM) , ⊢-δ (proj₂ (match-is-well-typed PM))
+match-is-well-typed (M-Φ PM) = proj₁ (match-is-well-typed PM) , ⊢-φ {!!} {!!}
+match-is-well-typed M-E = {!!} , {!!}
+match-is-well-typed (M-V x) = {!!} , {!!}
+match-is-well-typed (M-· PM PM₁) = {!!} , {!!}
+match-is-well-typed (M-+ PM PM₁) = {!!} , {!!}
+match-is-well-typed (M-ƛ x x₁) = {!!} , {!!}
+match-is-well-typed (M-$ x) = {!!} , {!!}
