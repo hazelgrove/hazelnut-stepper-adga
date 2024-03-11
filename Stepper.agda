@@ -2,7 +2,6 @@ open import Data.String using (String)
 open import Data.Nat using (ℕ; _+_; _≤_; _>_)
 open import Data.Product using (_,_; _×_; proj₁; proj₂)
 open import Data.Sum using (_⊎_)
-import Data.Irrelevant
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong; _≢_)
@@ -35,7 +34,6 @@ data Pat : Set
 data Exp : Set
 
 infix 5 ƛ_⇒_
-infix 5 ƛ$x⇒_
 infix 5 φ_⇒_
 infix 5 δ_⇒_
 infixl 7 _`+_
@@ -51,7 +49,6 @@ data Pat where
   $v     : Pat
   `_     : Id → Pat
   ƛ_⇒_  : Id → Exp → Pat
-  ƛ$x⇒_ : Exp → Pat
   _`·_   : Pat → Pat → Pat
   #_     : ℕ → Pat
   _`+_   : Pat → Pat → Pat
@@ -60,7 +57,6 @@ $e ≟-pat $e = yes refl
 $e ≟-pat $v = no (λ ())
 $e ≟-pat (` x) = no (λ ())
 $e ≟-pat (ƛ x ⇒ x₁) = no (λ ())
-$e ≟-pat (ƛ$x⇒ x) = no (λ ())
 $e ≟-pat (p₂ `· p₃) = no (λ ())
 $e ≟-pat (# x) = no (λ ())
 $e ≟-pat (p₂ `+ p₃) = no (λ ())
@@ -68,7 +64,6 @@ $v ≟-pat $e = no (λ ())
 $v ≟-pat $v = yes refl
 $v ≟-pat (` x) = no (λ ())
 $v ≟-pat (ƛ x ⇒ x₁) = no (λ ())
-$v ≟-pat (ƛ$x⇒ x) = no (λ ())
 $v ≟-pat (p₂ `· p₃) = no (λ ())
 $v ≟-pat (# x) = no (λ ())
 $v ≟-pat (p₂ `+ p₃) = no (λ ())
@@ -78,7 +73,6 @@ $v ≟-pat (p₂ `+ p₃) = no (λ ())
 ... | yes refl = yes refl
 ... | no ¬x≡y  = no λ { refl → ¬x≡y refl }
 (` x) ≟-pat (ƛ x₁ ⇒ x₂) = no (λ ())
-(` x) ≟-pat (ƛ$x⇒ x₁) = no (λ ())
 (` x) ≟-pat (p₂ `· p₃) = no (λ ())
 (` x) ≟-pat (# x₁) = no (λ ())
 (` x) ≟-pat (p₂ `+ p₃) = no (λ ())
@@ -88,25 +82,13 @@ $v ≟-pat (p₂ `+ p₃) = no (λ ())
 (ƛ x ⇒ p₁) ≟-pat (ƛ y ⇒ p₂) with (x Data.String.≟ y) ×-dec (p₁ ≟-exp p₂)
 ... | yes (refl , refl) = yes refl
 ... | no x≢y⊎p₁≢p₂ = no λ { refl → x≢y⊎p₁≢p₂ (refl , refl) }
-(ƛ x ⇒ x₁) ≟-pat (ƛ$x⇒ x₂) = no (λ ())
 (ƛ x ⇒ x₁) ≟-pat (p₂ `· p₃) = no (λ ())
 (ƛ x ⇒ x₁) ≟-pat (# x₂) = no (λ ())
 (ƛ x ⇒ x₁) ≟-pat (p₂ `+ p₃) = no (λ ())
-(ƛ$x⇒ x) ≟-pat $e = no (λ ())
-(ƛ$x⇒ x) ≟-pat $v = no (λ ())
-(ƛ$x⇒ x) ≟-pat (` x₁) = no (λ ())
-(ƛ$x⇒ x) ≟-pat (ƛ x₁ ⇒ x₂) = no (λ ())
-(ƛ$x⇒ e₁) ≟-pat (ƛ$x⇒ e₂) with (e₁ ≟-exp e₂)
-... | yes refl = yes refl
-... | no e₁≢e₂ = no λ { refl → e₁≢e₂ refl }
-(ƛ$x⇒ x) ≟-pat (p₂ `· p₃) = no (λ ())
-(ƛ$x⇒ x) ≟-pat (# x₁) = no (λ ())
-(ƛ$x⇒ x) ≟-pat (p₂ `+ p₃) = no (λ ())
 (p₁ `· p₃) ≟-pat $e = no (λ ())
 (p₁ `· p₃) ≟-pat $v = no (λ ())
 (p₁ `· p₃) ≟-pat (` x) = no (λ ())
 (p₁ `· p₃) ≟-pat (ƛ x ⇒ x₁) = no (λ ())
-(p₁ `· p₃) ≟-pat (ƛ$x⇒ x) = no (λ ())
 (p₁ `· p₃) ≟-pat (p₂ `· p₄) with (p₁ ≟-pat p₂) ×-dec (p₃ ≟-pat p₄)
 ... | yes (refl , refl) = yes refl
 ... | no ¬1≟-pat2⊎¬3≟-pat4 = no λ { refl → ¬1≟-pat2⊎¬3≟-pat4 (refl , refl) }
@@ -116,7 +98,6 @@ $v ≟-pat (p₂ `+ p₃) = no (λ ())
 (# x) ≟-pat $v = no (λ ())
 (# x) ≟-pat (` x₁) = no (λ ())
 (# x) ≟-pat (ƛ x₁ ⇒ x₂) = no (λ ())
-(# x) ≟-pat (ƛ$x⇒ x₁) = no (λ ())
 (# x) ≟-pat (p₂ `· p₃) = no (λ ())
 (# x) ≟-pat (# y) with (x Data.Nat.≟ y)
 ... | yes refl = yes refl
@@ -126,7 +107,6 @@ $v ≟-pat (p₂ `+ p₃) = no (λ ())
 (p₁ `+ p₃) ≟-pat $v = no (λ ())
 (p₁ `+ p₃) ≟-pat (` x) = no (λ ())
 (p₁ `+ p₃) ≟-pat (ƛ x ⇒ x₁) = no (λ ())
-(p₁ `+ p₃) ≟-pat (ƛ$x⇒ x) = no (λ ())
 (p₁ `+ p₃) ≟-pat (p₂ `· p₄) = no (λ ())
 (p₁ `+ p₃) ≟-pat (# x) = no (λ ())
 (p₁ `+ p₃) ≟-pat (p₂ `+ p₄) with (p₁ ≟-pat p₂) ×-dec (p₃ ≟-pat p₄)
@@ -252,9 +232,6 @@ data PatVal : Pat → Set where
   PV-ƛ : ∀ {x e}
     → PatVal (ƛ x ⇒ e)
 
-  PV-$ : ∀ {e}
-    → PatVal (ƛ$x⇒ e)
-
 strip : Exp → Exp
 strip (` x) = ` x
 strip (ƛ x ⇒ L) = ƛ x ⇒ (strip L)
@@ -293,7 +270,6 @@ _⟨_:=_⟩ (` x) y V with (x Data.String.≟ y)
 _⟨_:=_⟩ (ƛ x ⇒ L) y V with (x Data.String.≟ y)
 ... | yes _ = (ƛ x ⇒ L)
 ... | no  _ = (ƛ x ⇒ (L [ y := V ]))
-_⟨_:=_⟩ (ƛ$x⇒ L) x V = ƛ$x⇒ (L [ x := V ])
 _⟨_:=_⟩ (L `· M) x V = (L ⟨ x := V ⟩) `· (M ⟨ x := V ⟩)
 _⟨_:=_⟩ (# n) x V = # n
 _⟨_:=_⟩ (L `+ M) x V = (L ⟨ x := V ⟩) `+ (M ⟨ x := V ⟩)
@@ -334,10 +310,6 @@ data _⊳_ : Pat → Exp → Set where
     → (strip eₚ) ≡ (strip eₑ)
     → (ƛ x ⇒ eₚ) ⊳ (ƛ x ⇒ eₑ)
 
-  M-$ : ∀ {x eₚ eₑ}
-    → strip eₚ ≡ strip eₑ
-    → (ƛ$x⇒ eₚ) ⊳ (ƛ x ⇒ eₑ)
-
 _matches_ : Pat → Exp → Set
 p matches e = p ⊳ e
 
@@ -358,15 +330,6 @@ $v matches? v with (value? v)
 (ƛ x ⇒ x₁) matches? (e `+ e₁) = no (λ ())
 (ƛ x ⇒ x₁) matches? (φ x₂ ⇒ e) = no (λ ())
 (ƛ x ⇒ x₁) matches? (δ x₂ ⇒ e) = no (λ ())
-(ƛ$x⇒ x) matches? (` x₁) = no (λ ())
-(ƛ$x⇒ eₚ) matches? (ƛ y ⇒ eₑ) with ((strip eₚ) ≟-exp (strip eₑ))
-... | no NEQ = no λ { (M-$ EQ) → NEQ EQ }
-... | yes EQ = yes (M-$ EQ)
-(ƛ$x⇒ x) matches? (e `· e₁) = no (λ ())
-(ƛ$x⇒ x) matches? (# x₁) = no (λ ())
-(ƛ$x⇒ x) matches? (e `+ e₁) = no (λ ())
-(ƛ$x⇒ x) matches? (φ x₁ ⇒ e) = no (λ ())
-(ƛ$x⇒ x) matches? (δ x₁ ⇒ e) = no (λ ())
 (p `· p₁) matches? (` x) = no (λ ())
 (p `· p₁) matches? (ƛ x ⇒ e) = no (λ ())
 (p₁ `· p₂) matches? (e₁ `· e₂) with (p₁ matches? e₁)
@@ -713,10 +676,6 @@ data _⊢_∻_ where
   ⊢-ƛ : ∀ {Γ x e τₓ τₑ}
     → Γ , x ∶ τₓ ⊢ e ∶ τₑ
     → Γ ⊢ ƛ x ⇒ e ∻ (τₓ ⇒ τₑ)
-
-  ⊢-$ : ∀ {Γ τₓ e τₑ}
-    → Γ ⊢ e ∶ τₑ
-    → Γ ⊢ ƛ$x⇒ e ∻ (τₓ ⇒ τₑ)
 
   ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
     → Γ ⊢ e₁ ∻ τ₂ ⇒ τ₁
