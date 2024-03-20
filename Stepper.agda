@@ -420,6 +420,9 @@ data _⊳_ : Pat → Exp → Set where
     → (strip (ƛ x ⇒ eₚ)) ≡α (strip (ƛ y ⇒ eₑ))
     → (ƛ x ⇒ eₚ) ⊳ (ƛ y ⇒ eₑ)
 
+  M-# : ∀ {n}
+    → (# n) ⊳ (# n)
+
 _matches_ : Pat → Exp → Set
 p matches e = p ⊳ e
 
@@ -449,7 +452,7 @@ $v matches? v with (value? v)
 (p `· p₁) matches? (e `+ e₁) = no (λ ())
 (p `· p₁) matches? (φ x ⇒ e) = no (λ ())
 (p `· p₁) matches? (δ x ⇒ e) = no (λ ())
-(# x) matches? e = no (λ ())
+(# x) matches? e = {!!}
 (p `+ p₁) matches? (` x) = no (λ ())
 (p `+ p₁) matches? (ƛ x ⇒ e) = no (λ ())
 (p `+ p₁) matches? (e `· e₁) = no (λ ())
@@ -759,11 +762,16 @@ data _⊢_∶_ where
     → Γ ⊢ e₂ ∶ τ₂
     → Γ ⊢ (e₁ `· e₂) ∶ τ₁
 
+  ⊢-+ : ∀ {Γ e₁ e₂ τ₁ τ₂}
+    → Γ ⊢ e₁ ∶ (τ₂ ⇒ τ₁)
+    → Γ ⊢ e₂ ∶ τ₂
+    → Γ ⊢ (e₁ `+ e₂) ∶ τ₁
+
   ⊢-# : ∀ {Γ n}
     → Γ ⊢ (# n) ∶ `ℕ
 
-  ⊢-φ : ∀ {Γ p ag e τₑ}
-    -- check for FV in p here
+  ⊢-φ : ∀ {Γ p τₚ ag e τₑ}
+    → Γ ⊢ p ∻ τₚ
     → Γ ⊢ e ∶ τₑ
     → Γ ⊢ φ (p , ag) ⇒ e ∶ τₑ
 
@@ -799,21 +807,48 @@ data _⊢_∻_ where
     → Γ ⊢ e₂ ∻ `ℕ
     → Γ ⊢ (e₁ `+ e₂) ∻ `ℕ
 
+ext : ∀ {Γ Δ}
+  → (∀ {x A}     →         Γ ∋ x ∶ A →         Δ ∋ x ∶ A)
+    -----------------------------------------------------
+  → (∀ {x y A B} → Γ , y ∶ B ∋ x ∶ A → Δ , y ∶ B ∋ x ∶ A)
+ext ρ Z           =  Z
+ext ρ (S x≢y ∋x)  =  S x≢y (ρ ∋x)
+
+rename-exp : ∀ {Γ Δ}
+  → (∀ {x A} → Γ ∋ x ∶ A → Δ ∋ x ∶ A)
+    ----------------------------------
+  → (∀ {M A} → Γ ⊢ M ∶ A → Δ ⊢ M ∶ A)
+renmae-pat : ∀ {Γ Δ}
+  → (∀ {x A} → Γ ∋  A → Γ ∋ x  A)
+  → (∀ {M A} → Γ ⊢ M ∻ A → Δ ⊢ M ∻ A)
+
+rename-exp ρ (⊢-` ∋-x)   =  ⊢-` (ρ ∋-x)
+rename-exp ρ (⊢-ƛ ⊢-N)   =  ⊢-ƛ (rename-exp (ext ρ) ⊢-N)
+rename-exp ρ (⊢-· e₁ e₂) = ⊢-· (rename-exp ρ e₁) (rename-exp ρ e₂)
+rename-exp ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-exp ρ e₁) (rename-exp ρ e₂)
+rename-exp ρ ⊢-#         = ⊢-#
+rename-exp ρ (⊢-φ p e) = ⊢-φ {!rename-exp ρ p!} {!!}
+rename-exp ρ (⊢-δ x)     = {!!}
+
+alpha-type : ∀ {Γ e₁ e₂ τ} → e₁ ≡α e₂ → (Γ ⊢ e₁ ∶ τ) ≡ (Γ ⊢ e₂ ∶ τ)
+alpha-type α-` = refl
+alpha-type (α-ƛ a) = {!!}
+alpha-type (α-· a a₁) = {!!}
+alpha-type α-# = {!!}
+alpha-type (α-+ a a₁) = {!!}
+alpha-type (α-δ x a) = {!!}
+alpha-type (α-φ x a) = {!!}
+
 progress : {!!}
 progress = {!!}
--- match-types : ∀ {Γ p e τₚ τₑ} → p ⊳ e → (Γ ⊢ p ∻ τₚ)
--- match-types (M-Δ PM) = (match-types PM)
--- match-types (M-Φ PM) = (match-types PM)
--- match-types M-E = ⊢-e
--- match-types (M-V x) = ⊢-v
--- match-types (M-· (M-Δ PMₗ) PMᵣ) = ⊢-· (match-types {!!}) {!!}
--- match-types (M-· (M-Φ PMₗ) PMᵣ) = ⊢-· {!!} {!!}
--- match-types (M-· M-E PMᵣ) = ⊢-· ⊢-e (match-types PMᵣ)
--- match-types (M-· (M-V x) PMᵣ) = ⊢-· ⊢-v {!!}
--- match-types (M-· (M-· PMₗ PMₗ₁) PMᵣ) = ⊢-· {!!} {!!}
--- match-types (M-· (M-+ PMₗ PMₗ₁) PMᵣ) = ⊢-· {!!} {!!}
--- match-types (M-· (M-ƛ x x₁) PMᵣ) = ⊢-· {!!} {!!}
--- match-types (M-· (M-$ x) PMᵣ) = ⊢-· {!!} {!!}
--- match-types (M-+ PMₗ PMᵣ) = {!!}
--- match-types (M-ƛ x x₁) = {!!}
--- match-types (M-$ x) = {!!}
+
+match-types : ∀ {Γ p e τ} → (Γ ⊢ e ∶ τ) → p ⊳ e → (Γ ⊢ p ∻ τ)
+match-types (⊢-` x) M-E = ⊢-e
+match-types (⊢-ƛ _) M-E = ⊢-e
+match-types (⊢-ƛ _) (M-V _) = ⊢-v
+match-types (⊢-ƛ {x = x₁} x⊢e) (M-ƛ (α-ƛ x)) = ⊢-ƛ {!!}
+match-types (⊢-· x x₁) = {!!}
+match-types (⊢-+ x x₁) = {!!}
+match-types ⊢-# = {!!}
+match-types (⊢-φ x x₁) = {!!}
+match-types (⊢-δ x) = {!!}
