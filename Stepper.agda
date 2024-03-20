@@ -18,14 +18,14 @@ pause ≟-act eval = no (λ ())
 pause ≟-act pause = yes refl
 
 data Gas : Set where
-  one : Gas
-  all : Gas
+  𝟙 : Gas
+  ⋆ : Gas
 
 _≟-gas_ : (a₁ : Gas) → (a₂ : Gas) → Dec (a₁ ≡ a₂)
-one ≟-gas one = yes refl
-one ≟-gas all = no (λ ())
-all ≟-gas one = no (λ ())
-all ≟-gas all = yes refl
+𝟙 ≟-gas 𝟙 = yes refl
+𝟙 ≟-gas ⋆ = no (λ ())
+⋆ ≟-gas 𝟙 = no (λ ())
+⋆ ≟-gas ⋆ = yes refl
 
 Id : Set
 Id = String
@@ -666,22 +666,22 @@ data _⊢_⇝_⊣_ : Act × ℕ → Ctx → Ctx → Act → Set where
   A-Δ-1-> : ∀ {act lvl ε ε′ act′ a l}
     → l > lvl
     → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , one , l) ⇒ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , 𝟙 , l) ⇒ ε ⇝ ε′ ⊣ act′
 
   A-Δ-1-≤ : ∀ {act lvl ε ε′ act′ a l}
     → l ≤ lvl
     → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , one , l) ⇒ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , 𝟙 , l) ⇒ ε ⇝ ε′ ⊣ act′
 
   A-Δ-∀-> : ∀ {act lvl ε ε′ act′ a l}
     → l > lvl
     → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , all , l) ⇒ ε ⇝ δ (a , all , l) ⇒ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , ⋆ , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
 
   A-Δ-∀-≤ : ∀ {act lvl ε ε′ act′ a l}
     → l ≤ lvl
     → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , all , l) ⇒ ε ⇝ δ (a , all , l) ⇒ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , ⋆ , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
 
 data _⊢_⇝_⟨_⟩⊣_ : Pat × Act × Gas × ℕ → Exp → Ctx → Exp → Act → Set where
   T : ∀ {p a g l e eᵢ ε₀ ε₁ e₀ a₁}
@@ -696,7 +696,7 @@ data _→*_ : Exp → Exp → Set where
 
   Φ/Δ : ∀ {e e′ e₀ ε₁ a₁ eₜ e₁}
     → e →* e′
-    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ a₁
+    → ($e , pause , 𝟙 , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ a₁
     → Filter e₀
     → e₀ —→ eₜ
     → e₁ ⇐ ε₁ ⟨ eₜ ⟩
@@ -704,7 +704,7 @@ data _→*_ : Exp → Exp → Set where
 
   skip : ∀ {e e′ e₀ ε₁ e₁ eₜ}
     → e →* e′
-    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ eval
+    → ($e , pause , 𝟙 , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ eval
     → e₀ —→ eₜ
     → e₁ ⇐ ε₁ ⟨ eₜ ⟩
     → e →* e₁
@@ -714,7 +714,7 @@ infix 0 _⇥_
 data _⇥_ : Exp → Exp → Set where
   pause : ∀ {e e′ e₀ ε₁ e₁ eₜ}
     → e →* e′
-    → ($e , pause , one , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ pause
+    → ($e , pause , 𝟙 , 0) ⊢ e′ ⇝ ε₁ ⟨ e₀ ⟩⊣ pause
     → e₀ —→ eₜ
     → e₁ ⇐ ε₁ ⟨ eₜ ⟩
     → e ⇥ e₁
@@ -816,23 +816,40 @@ ext ρ (S x≢y ∋x)  =  S x≢y (ρ ∋x)
 
 rename-exp : ∀ {Γ Δ}
   → (∀ {x A} → Γ ∋ x ∶ A → Δ ∋ x ∶ A)
-    ----------------------------------
-  → (∀ {M A} → Γ ⊢ M ∶ A → Δ ⊢ M ∶ A)
-renmae-pat : ∀ {Γ Δ}
-  → (∀ {x A} → Γ ∋  A → Γ ∋ x  A)
-  → (∀ {M A} → Γ ⊢ M ∻ A → Δ ⊢ M ∻ A)
+  → (∀ {e A} → Γ ⊢ e ∶ A → Δ ⊢ e ∶ A)
+rename-pat : ∀ {Γ Δ}
+  → (∀ {x A} → Γ ∋ x ∶ A → Δ ∋ x ∶ A)
+  → (∀ {e A} → Γ ⊢ e ∻ A → Δ ⊢ e ∻ A)
 
-rename-exp ρ (⊢-` ∋-x)   =  ⊢-` (ρ ∋-x)
-rename-exp ρ (⊢-ƛ ⊢-N)   =  ⊢-ƛ (rename-exp (ext ρ) ⊢-N)
+rename-exp ρ (⊢-` ∋-x)   = ⊢-` (ρ ∋-x)
+rename-exp ρ (⊢-ƛ ⊢-N)   = ⊢-ƛ (rename-exp (ext ρ) ⊢-N)
 rename-exp ρ (⊢-· e₁ e₂) = ⊢-· (rename-exp ρ e₁) (rename-exp ρ e₂)
 rename-exp ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-exp ρ e₁) (rename-exp ρ e₂)
 rename-exp ρ ⊢-#         = ⊢-#
-rename-exp ρ (⊢-φ p e) = ⊢-φ {!rename-exp ρ p!} {!!}
-rename-exp ρ (⊢-δ x)     = {!!}
+rename-exp ρ (⊢-φ p e)   = ⊢-φ (rename-pat ρ p) (rename-exp ρ e)
+rename-exp ρ (⊢-δ Γ-⊢)   = ⊢-δ (rename-exp ρ Γ-⊢)
 
-alpha-type : ∀ {Γ e₁ e₂ τ} → e₁ ≡α e₂ → (Γ ⊢ e₁ ∶ τ) ≡ (Γ ⊢ e₂ ∶ τ)
-alpha-type α-` = refl
-alpha-type (α-ƛ a) = {!!}
+rename-pat ρ ⊢-e         = ⊢-e
+rename-pat ρ ⊢-v         = ⊢-v
+rename-pat ρ (⊢-` ∋-x)   = ⊢-` (ρ ∋-x)
+rename-pat ρ (⊢-ƛ x⊢e)   = ⊢-ƛ (rename-exp (ext ρ) x⊢e)
+rename-pat ρ (⊢-· e₁ e₂) = ⊢-· (rename-pat ρ e₁) (rename-pat ρ e₂)
+rename-pat ρ ⊢-#         = ⊢-#
+rename-pat ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-pat ρ e₁) (rename-pat ρ e₂)
+
+alpha-type : ∀ {Γ e₁ e₂ τ} → e₁ ≡α e₂ → (Γ ⊢ e₁ ∶ τ) ↔ (Γ ⊢ e₂ ∶ τ)
+alpha-type α-` =
+  record
+    { to = Function.id
+    ; from = Function.id
+    ; to-cong = Function.id
+    ; from-cong = Function.id
+    ; inverse = Function.id , Function.id
+    }
+alpha-type (α-ƛ a) =
+  record
+    { to = λ { (⊢-ƛ x) → ⊢-ƛ (Function.Inverse.to (alpha-type {!a!}) {!!}) }
+    ; from = {!!} ; to-cong = {!!} ; from-cong = {!!} ; inverse = {!!} }
 alpha-type (α-· a a₁) = {!!}
 alpha-type α-# = {!!}
 alpha-type (α-+ a a₁) = {!!}
