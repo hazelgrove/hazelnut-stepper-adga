@@ -1,7 +1,7 @@
 open import Data.String using (String)
 open import Data.Nat using (ℕ; _+_; _≤_; _>_)
 open import Data.Product using (_,_; _×_; proj₁; proj₂)
-open import Data.Sum using (_⊎_)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Empty using (⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
 import Relation.Binary.PropositionalEquality as Eq
@@ -196,9 +196,8 @@ data _—→_ : Exp → Exp → Set where
   --   → eᵣ —→ eᵣ′
   --   → vₗ `+ eᵣ —→ vₗ `+ eᵣ′
 
-  β-+ : ∀ {vᵣ x eₓ}
-    → Value vᵣ
-    → (ƛ eₓ) `+ vᵣ —→ (eₓ [ x := vᵣ ])
+  β-+ : ∀ {nₗ nᵣ}
+    → (# nₗ) `+ (# nᵣ) —→ (# (nₗ Data.Nat.+ nᵣ))
 
   -- ξ-φ : ∀ {pag e e′}
   --   → e —→ e′
@@ -247,9 +246,10 @@ data _⇒_⟨_⟩ : Exp → Ctx → Exp → Set where
     → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
     → (eₗ `+ eᵣ) ⇒ (ℰ +ₗ eᵣ) ⟨ eₗ′ ⟩
 
-  D-ξ-+ᵣ : ∀ {eₗ eᵣ ℰ eᵣ′}
+  D-ξ-+ᵣ : ∀ {vₗ eᵣ ℰ eᵣ′}
+    → Value vₗ
     → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
-    → (eₗ `+ eᵣ) ⇒ (eₗ +ᵣ ℰ) ⟨ eᵣ′ ⟩
+    → (vₗ `+ eᵣ) ⇒ (vₗ +ᵣ ℰ) ⟨ eᵣ′ ⟩
 
   D-β-+ : ∀ {vₗ vᵣ ℰ}
     → Value vₗ
@@ -271,6 +271,27 @@ data _⇒_⟨_⟩ : Exp → Ctx → Exp → Set where
   D-β-δ : ∀ {agl v ℰ}
     → Value v
     → (δ agl ⇒ v) ⇒ ℰ ⟨ δ agl ⇒ v ⟩
+
+V¬⇒ : ∀ {v ε e}
+  → Value v
+  → ¬ (v ⇒ ε ⟨ e ⟩)
+V¬⇒ V-# ()
+V¬⇒ V-ƛ ()
+
+⇒¬V : ∀ {e ε e₀}
+  → e ⇒ ε ⟨ e₀ ⟩
+  → ¬ (Value e)
+⇒¬V D-β-` ()
+⇒¬V (D-ξ-·ₗ _) ()
+⇒¬V (D-ξ-·ᵣ _ _) ()
+⇒¬V (D-β-· _ _) ()
+⇒¬V (D-ξ-+ₗ _) ()
+⇒¬V (D-ξ-+ᵣ _ _) ()
+⇒¬V (D-β-+ _ _) ()
+⇒¬V (D-ξ-φ _) ()
+⇒¬V (D-β-φ _) ()
+⇒¬V (D-ξ-δ _) ()
+⇒¬V (D-β-δ _) ()
 
 data _⇐_⟨_⟩ : Exp → Ctx → Exp → Set where
   C-∘ : ∀ {e}
@@ -390,61 +411,25 @@ data _⊢_⇝_⊣_ : Act × ℕ → Ctx → Ctx → Act → Set where
     → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
     → (act , lvl) ⊢ δ (a , ⋆ , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
 
--- data _⊢_⇝_⟨_⟩⊣_ : Pat × Act × Gas × ℕ → Exp → Ctx → Exp → Act → Set where
---   T : ∀ {p a g l e eᵢ ε₀ ε₁ e₀ a₁}
---     → (p , a , g , l) ⊢ e ⇝ eᵢ
---     → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
---     → (a , l) ⊢ ε₀ ⇝ ε₁ ⊣ a₁
---     → (p , a , g , l) ⊢ e ⇝ ε₁ ⟨ e₀ ⟩⊣ a₁
-
--- data _↠_ : Exp → Exp → Set where
---   init : ∀ {e}
---     → e ↠ e
-
---   Φ/Δ : ∀ {e″ e e′ e₀ e₀′ ε a}
---     → e″ ↠ e
---     → ($e , pause , 𝟙 , 0) ⊢ e ⇝ ε ⟨ e₀ ⟩⊣ a
---     → Filter e₀
---     → e₀ —→ e₀′
---     → e′ ⇐ ε ⟨ e₀′ ⟩
---     → e ↠ e′
-
---   skip : ∀ {e″ e e′ e₀ e₀′ ε}
---     → e″ ↠ e
---     → ($e , pause , 𝟙 , 0) ⊢ e ⇝ ε ⟨ e₀ ⟩⊣ eval
---     → e₀ —→ e₀′
---     → e′ ⇐ ε ⟨ e₀′ ⟩
---     → e ↠ e′
+data _↠_ : Exp → Exp → Set where
+  skip : ∀ {e e′ eᵢ e₀ e₀′ ε ε₀}
+    → ($e , pause , 𝟙 , 0) ⊢ e ⇝ eᵢ
+    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+    → Filter e₀ ⊎ (pause , 0) ⊢ ε₀ ⇝ ε ⊣ eval
+    → e₀ —→ e₀′
+    → e′ ⇐ ε ⟨ e₀′ ⟩
+    → e ↠ e′
 
 infix 0 _⇥_
 
 data _⇥_ : Exp → Exp → Set where
-  step : ∀ {e e′ eᵢ e₀ e₀′ ε ε₀ a}
+  step : ∀ {e e′ eᵢ e₀ e₀′ ε ε₀}
     → ($e , pause , 𝟙 , 0) ⊢ e ⇝ eᵢ
     → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
     → (pause , 0) ⊢ ε₀ ⇝ ε ⊣ pause
     → e₀ —→ e₀′
     → e′ ⇐ ε ⟨ e₀′ ⟩
     → e ⇥ e′
-
-  Φ/Δ : ∀ {e e′ e″ eᵢ e₀ e₀′ ε ε₀ a}
-    -- → ($e , pause , 𝟙 , 0) ⊢ e ⇝ eᵢ
-    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
-    -- → (pause , 0) ⊢ ε₀ ⇝ ε ⊣ a
-    → Filter e₀
-    → e₀ —→ e₀′
-    → e′ ⇐ ε ⟨ e₀′ ⟩
-    → e′ ⇥ e″
-    → e ⇥ e″
-
-  skip : ∀ {e e′ e″ eᵢ e₀ e₀′ ε ε₀ a}
-    -- → ($e , pause , 𝟙 , 0) ⊢ e ⇝ eᵢ
-    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
-    -- → (pause , 0) ⊢ ε₀ ⇝ ε ⊣ eval
-    → e₀ —→ e₀′
-    → e′ ⇐ ε ⟨ e₀′ ⟩
-    → e′ ⇥ e″
-    → e ⇥ e″
 
 infixr 7 _⇒_
 
@@ -575,6 +560,10 @@ data Progress : Exp → Set where
     → e₀ ⇥ e₁
     → Progress e₀
 
+  skip : ∀ {e₀ e₁}
+    → e₀ ↠ e₁
+    → Progress e₀
+
   done : ∀ {v}
     → Value v
     → Progress v
@@ -582,17 +571,63 @@ data Progress : Exp → Set where
 progress : ∀ {e τ}
   → ∅ ⊢ e ∶ τ
   → Progress e
-progress (⊢-ƛ e) = done V-ƛ
-progress (⊢-· ⊢₁ ⊢₂) with (progress ⊢₁)
-... | step (step {eᵢ = eᵢ₁} I₁ D₁ A₁ T₁ C₁) with (progress ⊢₂)
-... | step (step {eᵢ = eᵢ₂} I₂ D₂ A₂ T₂ C₂) with (value? eᵢ₁)
-... | yes V-ƛ with (value? eᵢ₂)
-... | yes V₂ = step (step (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-β-· V-ƛ V₂)) (A-Δ-1-≤ _≤_.z≤n A₁) (β-· V₂) {!C₁!})
--- ... | step (step I D A T C) = step (step (I-·-⊤ M-E I {!!}) {!!} {!!} T C)
--- ... | step (Φ/Δ x x₁ x₂ x₃ x₄) = step {!!}
--- ... | step (skip x x₁ x₂ x₃) = step {!!}
--- ... | done x = {!!}
-progress (⊢-+ e e₁) = {!!}
+progress (⊢-ƛ ⊢) = done V-ƛ
+progress (⊢-· ⊢₁ ⊢₂) with (progress ⊢₁) with (progress ⊢₂)
+progress (⊢-· ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | step (step I₂ _ _ _ _) =
+  step (step (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁)) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  step (step (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁)) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | done V₂ =
+  step (step (I-·-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-·ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁)) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | step (step I₂ _ _ _ _) =
+  skip (skip (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₁ A₁) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | step (step I₂ _ _ _ _) =
+  skip (skip (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁))) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  skip (skip (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₁ A₁) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  skip (skip (I-·-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁))) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | done V₂ =
+  skip (skip (I-·-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₁ A₁) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | done V₂ =
+  skip (skip (I-·-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-·ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-·-l A₁))) T₁ (C-·ₗ C₁))
+progress (⊢-· ⊢₁ ⊢₂) | done V₁ | step (step I₂ D₂ A₂ T₂ C₂) =
+  step (step (I-·-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-·ᵣ V₁ D₂)) (A-Δ-1-≤ _≤_.z≤n (A-·-r A₂)) T₂ (C-·ᵣ C₂))
+progress (⊢-· ⊢₁ ⊢₂) | done V₁ | skip (skip I₂ D₂ (inj₁ A₂) T₂ C₂) =
+  skip (skip (I-·-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-·ᵣ V₁ D₂)) (inj₁ A₂) T₂ (C-·ᵣ C₂))
+progress (⊢-· ⊢₁ ⊢₂) | done V₁ | skip (skip I₂ D₂ (inj₂ A₂) T₂ C₂) =
+  skip (skip (I-·-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-·ᵣ V₁ D₂)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-·-r A₂))) T₂ (C-·ᵣ C₂))
+progress (⊢-· (⊢-ƛ ⊢₁) ⊢₂) | done V₁ | done V₂ =
+  step (step (I-·-⊤ M-E (I-V V₁) (I-V V₂)) (D-ξ-δ (D-β-· V₁ V₂)) (A-Δ-1-≤ _≤_.z≤n A-∘) (β-· V₂) C-∘)
+progress (⊢-+ ⊢₁ ⊢₂) with (progress ⊢₁) with (progress ⊢₂)
+progress (⊢-+ ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | step (step I₂ _ _ _ _) =
+  step (step (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁)) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  step (step (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁)) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | step (step I₁ D₁ A₁ T₁ C₁) | done V₂ =
+  step (step (I-+-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-+ₗ D₁)) (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁)) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | step (step I₂ _ _ _ _) =
+  skip (skip (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₁ A₁) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | step (step I₂ _ _ _ _) =
+  skip (skip (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁))) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  skip (skip (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₁ A₁) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | skip (skip I₂ _ _ _ _) =
+  skip (skip (I-+-⊤ M-E I₁ I₂) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁))) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₁ A₁) T₁ C₁) | done V₂ =
+  skip (skip (I-+-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₁ A₁) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | skip (skip I₁ D₁ (inj₂ A₁) T₁ C₁) | done V₂ =
+  skip (skip (I-+-⊤ M-E I₁ (I-V V₂)) (D-ξ-δ (D-ξ-+ₗ D₁)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-+-l A₁))) T₁ (C-+ₗ C₁))
+progress (⊢-+ ⊢₁ ⊢₂) | done V₁ | step (step I₂ D₂ A₂ T₂ C₂) =
+  step (step (I-+-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-+ᵣ V₁ D₂)) (A-Δ-1-≤ _≤_.z≤n (A-+-r A₂)) T₂ (C-+ᵣ C₂))
+progress (⊢-+ ⊢₁ ⊢₂) | done V₁ | skip (skip I₂ D₂ (inj₁ A₂) T₂ C₂) =
+  skip (skip (I-+-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-+ᵣ V₁ D₂)) (inj₁ A₂) T₂ (C-+ᵣ C₂))
+progress (⊢-+ ⊢₁ ⊢₂) | done V₁ | skip (skip I₂ D₂ (inj₂ A₂) T₂ C₂) =
+  skip (skip (I-+-⊤ M-E (I-V V₁) I₂) (D-ξ-δ (D-ξ-+ᵣ V₁ D₂)) (inj₂ (A-Δ-1-≤ _≤_.z≤n (A-+-r A₂))) T₂ (C-+ᵣ C₂))
+progress (⊢-+ ⊢-# ⊢-#) | done V₁ | done V₂ = step (step (I-+-⊤ M-E (I-V V₁) (I-V V₂)) (D-ξ-δ (D-β-+ V₁ V₂)) (A-Δ-1-≤ _≤_.z≤n A-∘) β-+ C-∘)
 progress ⊢-# = done V-#
-progress (⊢-φ x e) = {!!}
-progress (⊢-δ e) = {!!}
+progress (⊢-φ ⊢ₚ ⊢ₑ) with progress ⊢ₑ
+progress (⊢-φ ⊢ₚ ⊢ₑ) | step (step I₁ D₁ A₁ T₁ C₁) = step (step (I-Φ I₁ {!!}) {!!} {!!} {!!} {!!})
+progress (⊢-φ ⊢ₚ ⊢ₑ) | skip x = {!!}
+progress (⊢-φ ⊢ₚ ⊢ₑ) | done x = {!!}
+progress (⊢-δ ⊢) = {!!}
