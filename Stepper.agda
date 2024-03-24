@@ -1,5 +1,5 @@
 open import Data.String using (String)
-open import Data.Nat using (ℕ; _+_; _≤_; _>_)
+open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n)
 open import Data.Product using (_,_; _×_; proj₁; proj₂)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Empty using (⊥-elim)
@@ -198,7 +198,7 @@ data Value : Exp → Set where
   V-# : ∀ {n : ℕ}
     → Value (# n)
 
-  V-ƛ : ∀ {x e}
+  V-ƛ : ∀ {e}
     → Value (ƛ e)
 
 value? : ∀ (e : Exp) → Dec (Value e)
@@ -363,42 +363,16 @@ $v matches? e | no ¬V = no λ { (M-V V) → ¬V V }
 infix 0 _—→_
 
 data _—→_ : Exp → Exp → Set where
-  -- ξ-·ₗ : ∀ {eₗ eᵣ eₗ′}
-  --   → eₗ —→ eₗ′
-  --   → eₗ `· eᵣ —→ eₗ′ `· eᵣ
-
-  -- ξ-·ᵣ : ∀ {eᵣ vₗ eᵣ′}
-  --   → Value vₗ
-  --   → eᵣ —→ eᵣ′
-  --   → vₗ `· eᵣ —→ vₗ `· eᵣ′
-
   β-· : ∀ {vᵣ eₓ}
     → Value vᵣ
     → (ƛ eₓ) `· vᵣ —→ (eₓ [ 0 := vᵣ ])
 
-  -- ξ-+ₗ : ∀ {eₗ eᵣ eₗ′}
-  --   → eₗ —→ eₗ′
-  --   → eₗ `+ eᵣ —→ eₗ′ `+ eᵣ
-
-  -- ξ-+ᵣ : ∀ {eᵣ vₗ eᵣ′}
-  --   → Value vₗ
-  --   → eᵣ —→ eᵣ′
-  --   → vₗ `+ eᵣ —→ vₗ `+ eᵣ′
-
   β-+ : ∀ {nₗ nᵣ}
     → (# nₗ) `+ (# nᵣ) —→ (# (nₗ Data.Nat.+ nᵣ))
-
-  -- ξ-φ : ∀ {pag e e′}
-  --   → e —→ e′
-  --   → (φ pag ⇒ e) —→ (φ pag ⇒ e′)
 
   β-φ : ∀ {pag v}
     → Value v
     → (φ pag ⇒ v) —→ v
-
-  -- ξ-δ : ∀ {agl e e′}
-  --   → e —→ e′
-  --   → (δ agl ⇒ e) —→ (δ agl ⇒ e′)
 
   β-δ : ∀ {agl v}
     → Value v
@@ -639,22 +613,42 @@ data Typ : Set where
   _⇒_ : Typ → Typ → Typ
   `ℕ   : Typ
 
-infixl 5 _,_∶_
+infixl 5 _⸴_
 
 data TypCtx : Set where
-  ∅     : TypCtx
-  _,_∶_ : TypCtx → Id → Typ → TypCtx
+  ∅   : TypCtx
+  _⸴_ : TypCtx → Typ → TypCtx
+
+length : TypCtx → ℕ
+length ∅ = 0
+length (Γ ⸴ x) = ℕ.suc (length Γ)
+
+lookup : ∀ {Γ : TypCtx} → {n : ℕ} → (p : n < length Γ) → Typ
+lookup {_ ⸴ A} {ℕ.zero} (s≤s z≤n) = A
+lookup {Γ ⸴ A} {ℕ.suc n} (s≤s p) = lookup p
+
+update : ∀ {Γ : TypCtx} → {n : ℕ} → (p : n < length Γ) → Typ → TypCtx
+update {Γ ⸴ τ₀} {ℕ.zero} (s≤s z≤n) τ₁ = Γ ⸴ τ₁
+update {Γ ⸴ _} {ℕ.suc n} (s≤s p) τ₁ = update p τ₁
+
+_[_]<-_ : TypCtx → ℕ → Typ → TypCtx
+Γ [ n ]<- τ with (n Data.Nat.<? length Γ)
+... | yes p = update p τ
+... | no ¬p = Γ
 
 infix 4 _∋_∶_
 
 data _∋_∶_ : TypCtx → Id → Typ → Set where
-  ∋-Z : ∀ {Γ x τ}
-    → Γ , x ∶ τ ∋ x ∶ τ
+  ∋-Z : ∀ {Γ τ}
+    → Γ ⸴ τ ∋ 0 ∶ τ
 
-  ∋-S : ∀ {Γ x₁ x₂ τ₁ τ₂}
-    → x₁ ≢ x₂
-    → Γ ∋ x₁ ∶ τ₁
-    → Γ , x₂ ∶ τ₂ ∋ x₁ ∶ τ₁
+  ∋-S : ∀ {Γ x τ₁ τ₂}
+    → Γ ∋ x ∶ τ₁
+    → Γ ⸴ τ₂ ∋ (ℕ.suc x) ∶ τ₁
+
+count : ∀ {Γ} → {n : ℕ} → (p : n < length Γ) → Γ ∋ n ∶ lookup p
+count {_ ⸴ _} {ℕ.zero} (s≤s z≤n) = ∋-Z
+count {Γ ⸴ _} {ℕ.suc n} (s≤s p) = ∋-S (count p)
 
 infix 4 _⊢_∶_
 infix 5 _⊢_∻_
@@ -668,7 +662,7 @@ data _⊢_∶_ where
     → Γ ⊢ ` x ∶ τ
 
   ⊢-ƛ : ∀ {Γ e τₓ τₑ}
-    → Γ , 0 ∶ τₓ ⊢ e ∶ τₑ
+    → Γ ⸴ τₓ ⊢ e ∶ τₑ
     → Γ ⊢ (ƛ e) ∶ (τₓ ⇒ τₑ)
 
   ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
@@ -704,8 +698,8 @@ data _⊢_∻_ where
     → Γ ∋ x ∶ τ
     → Γ ⊢ ` x ∻ τ
 
-  ⊢-ƛ : ∀ {Γ x e τₓ τₑ}
-    → Γ , x ∶ τₓ ⊢ e ∶ τₑ
+  ⊢-ƛ : ∀ {Γ e τₓ τₑ}
+    → Γ ⸴ τₓ ⊢ e ∶ τₑ
     → Γ ⊢ ƛ e ∻ (τₓ ⇒ τₑ)
 
   ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
@@ -722,11 +716,10 @@ data _⊢_∻_ where
     → Γ ⊢ (e₁ `+ e₂) ∻ `ℕ
 
 ext : ∀ {Γ Δ}
-  → (∀ {x A}     →         Γ ∋ x ∶ A →         Δ ∋ x ∶ A)
-    -----------------------------------------------------
-  → (∀ {x y A B} → Γ , y ∶ B ∋ x ∶ A → Δ , y ∶ B ∋ x ∶ A)
-ext ρ ∋-Z           =  ∋-Z
-ext ρ (∋-S x≢y ∋x)  =  ∋-S x≢y (ρ ∋x)
+  → (∀ {x A}   →     Γ ∋ x ∶ A →     Δ ∋ x ∶ A)
+  → (∀ {x A B} → Γ ⸴ B ∋ x ∶ A → Δ ⸴ B ∋ x ∶ A)
+ext ρ ∋-Z       =  ∋-Z
+ext ρ (∋-S ∋x)  =  ∋-S (ρ ∋x)
 
 rename-exp : ∀ {Γ Δ}
   → (∀ {x A} → Γ ∋ x ∶ A → Δ ∋ x ∶ A)
@@ -753,9 +746,7 @@ rename-pat ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-pat ρ e₁) (rename-pat ρ e₂
 
 ∋-functional : ∀ {Γ x τ₁ τ₂} → (Γ ∋ x ∶ τ₁) → (Γ ∋ x ∶ τ₂) → τ₁ ≡ τ₂
 ∋-functional ∋-Z ∋-Z = refl
-∋-functional ∋-Z (∋-S x≢x _) = ⊥-elim (x≢x refl)
-∋-functional (∋-S x≢x _) ∋-Z = ⊥-elim (x≢x refl)
-∋-functional (∋-S x₁≢ ∋-x₁) (∋-S x₂≢ ∋-x₂) = ∋-functional ∋-x₁ ∋-x₂
+∋-functional (∋-S ∋₁) (∋-S ∋₂) = ∋-functional ∋₁ ∋₂
 
 strip-preserve : ∀ {Γ e τ}
   → Γ ⊢ e ∶ τ
@@ -792,57 +783,26 @@ weaken {Γ} ⊢e = rename-exp ρ ⊢e
     → Γ ∋ z ∶ C
   ρ ()
 
-drop : ∀ {Γ x M A B C}
-  → Γ , x ∶ A , x ∶ B ⊢ M ∶ C
-  → Γ , x ∶ B ⊢ M ∶ C
-drop {Γ} {x} {M} {A} {B} {C} ⊢M = rename-exp ρ ⊢M
-  where
-  ρ : ∀ {z C}
-    → Γ , x ∶ A , x ∶ B ∋ z ∶ C
-    → Γ , x ∶ B ∋ z ∶ C
-  ρ ∋-Z                  =  ∋-Z
-  ρ (∋-S x≢x ∋-Z)        =  ⊥-elim (x≢x refl)
-  ρ (∋-S z≢x (∋-S _ ∋z)) =  ∋-S z≢x ∋z
+-- subst : ∀ {Γ v e τᵥ τₑ}
+--   → ∅ ⊢ v ∶ τᵥ
+--   → Γ ⸴ τᵥ ⊢ e ∶ τₑ
+--   → Γ ⊢ (e [ 0 := v ]) ∶ τₑ
+-- subst {e = ` ℕ.zero} ⊢ᵥ (⊢-` ∋-Z) = {!!}
+-- subst {e = ` (ℕ.suc x)} ⊢ᵥ (⊢-` (∋-S {x = y} ∋)) = ⊥-elim {!!}
+-- subst ⊢ᵥ (⊢-ƛ ⊢ₑ) = {!!}
+-- subst ⊢ᵥ (⊢-· ⊢ₑ ⊢ₑ₁) = {!!}
+-- subst ⊢ᵥ (⊢-+ ⊢ₑ ⊢ₑ₁) = {!!}
+-- subst ⊢ᵥ ⊢-# = {!!}
+-- subst ⊢ᵥ (⊢-φ x ⊢ₑ) = {!!}
+-- subst ⊢ᵥ (⊢-δ ⊢ₑ) = {!!}
 
-swap : ∀ {Γ x y M A B C}
-  → x ≢ y
-  → Γ , y ∶ B , x ∶ A ⊢ M ∶ C
-    --------------------------
-  → Γ , x ∶ A , y ∶ B ⊢ M ∶ C
-swap {Γ} {x} {y} {M} {A} {B} {C} x≢y ⊢M = rename-exp ρ ⊢M
-  where
-  ρ : ∀ {z C}
-    → Γ , y ∶ B , x ∶ A ∋ z ∶ C
-      --------------------------
-    → Γ , x ∶ A , y ∶ B ∋ z ∶ C
-  ρ ∋-Z                   =  ∋-S x≢y ∋-Z
-  ρ (∋-S z≢x ∋-Z)           =  ∋-Z
-  ρ (∋-S z≢x (∋-S z≢y ∋z))  =  ∋-S z≢y (∋-S z≢x ∋z)
-
-subst : ∀ {Γ e x v τᵥ τₑ}
-  → ∅ ⊢ v ∶ τᵥ
-  → Γ , x ∶ τᵥ ⊢ e ∶ τₑ
-  → Γ ⊢ e [ x := v ] ∶ τₑ
-subst {x = x} ⊢ᵥ (⊢-` {x = y} ∋-Z) with (x Data.Nat.≟ y)
-... | yes refl = weaken ⊢ᵥ
-... | no x≢y = ⊥-elim (x≢y refl)
-subst {x = y} ⊢ᵥ (⊢-` {x = x} (∋-S x≢y ∋-x)) with (x Data.Nat.≟ y)
-... | yes refl = ⊥-elim (x≢y refl)
-... | no _ = ⊢-` ∋-x
-subst {x = y} ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ (subst {!!} (swap {!!} {!⊢ₑ!}))
-subst ⊢ᵥ (⊢-· ₓ⊢ₑ ₓ⊢ₑ₁) = {!!}
-subst ⊢ᵥ (⊢-+ ₓ⊢ₑ ₓ⊢ₑ₁) = {!!}
-subst ⊢ᵥ ⊢-# = {!!}
-subst ⊢ᵥ (⊢-φ x ₓ⊢ₑ) = {!!}
-subst ⊢ᵥ (⊢-δ ₓ⊢ₑ) = {!!}
-
-trans-preserve : ∀ {Γ e τ e′}
+—→-preserve : ∀ {Γ e τ e′}
   → Γ ⊢ e ∶ τ
   → e —→ e′
   → Γ ⊢ e′ ∶ τ
-trans-preserve (⊢-· ⊢ₗ ⊢ᵣ) (β-· Vᵣ) = {!!}
-trans-preserve (⊢-+ ⊢ ⊢₁) T = {!!}
-trans-preserve (⊢-φ x ⊢) T = {!!}
+—→-preserve (⊢-· ⊢ₗ ⊢ᵣ) (β-· Vᵣ) = {!!}
+—→-preserve (⊢-+ ⊢ ⊢₁) T = {!!}
+—→-preserve (⊢-φ x ⊢) T = {!!}
 
 data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
   step : ∀ {p a g l e₀ e₁}
