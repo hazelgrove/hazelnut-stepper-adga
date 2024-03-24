@@ -1,5 +1,6 @@
 open import Data.String using (String)
 open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n)
+open import Data.Integer using (ℤ)
 open import Data.Product using (_,_; _×_; proj₁; proj₂)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Empty using (⊥-elim)
@@ -267,6 +268,35 @@ patternize (L `+ M) = (patternize L) `+ (patternize M)
 patternize (φ x ⇒ L) = patternize L
 patternize (δ x ⇒ L) = patternize L
 
+shift_from : Exp → ℕ → Exp
+shift ` x from d with (x Data.Nat.<? d)
+... | yes _ = ` x
+... | no _ = ` (ℕ.suc x)
+shift ƛ e from d = ƛ shift e from (ℕ.suc d)
+shift eₗ `· eᵣ from d  = (shift eₗ from d) `· (shift eᵣ from d)
+shift # x from d  = # x
+shift eₗ `+ eᵣ from d  = (shift eₗ from d) `+ (shift eᵣ from d)
+shift φ pag ⇒ e from d  = φ pag ⇒ (shift e from d)
+shift δ agl ⇒ e from d  = δ agl ⇒ (shift e from d)
+
+shift : Exp → Exp
+shift e = shift e from 0
+
+shift-_from : Exp → ℕ → Exp
+shift- ` ℕ.zero from d = ` ℕ.zero
+shift- ` ℕ.suc x from d with (x Data.Nat.<? d)
+... | yes _ = (` ℕ.suc x)
+... | no _ = (` x)
+shift- ƛ e from d = ƛ shift e from (ℕ.suc d)
+shift- eₗ `· eᵣ from d  = (shift eₗ from d) `· (shift eᵣ from d)
+shift- # x from d  = # x
+shift- eₗ `+ eᵣ from d  = (shift eₗ from d) `+ (shift eᵣ from d)
+shift- φ pag ⇒ e from d  = φ pag ⇒ (shift e from d)
+shift- δ agl ⇒ e from d  = δ agl ⇒ (shift e from d)
+
+shift- : Exp → Exp
+shift- e = shift- e from 0
+
 _[_:=_] : Exp → ℕ → Exp → Exp
 _⟨_:=_⟩ : Pat → ℕ → Exp → Pat
 
@@ -275,7 +305,7 @@ $v ⟨ _ := _ ⟩ = $v
 (` x) ⟨ y := v ⟩ with (x Data.Nat.≟ y)
 ... | yes refl = patternize v
 ... | no x≢y = (` x)
-(ƛ e) ⟨ y := v ⟩ = ƛ (e [ (ℕ.suc y) := v ])
+(ƛ e) ⟨ y := v ⟩ = ƛ (e [ (ℕ.suc y) := (shift v) ])
 (p₁ `· p₂) ⟨ x := v ⟩ = (p₁ ⟨ x := v ⟩) `· (p₂ ⟨ x := v ⟩)
 (# n) ⟨ _ := _ ⟩ = # n
 (p₁ `+ p₂) ⟨ x := v ⟩ = (p₁ ⟨ x := v ⟩) `+ (p₂ ⟨ x := v ⟩)
@@ -283,7 +313,7 @@ $v ⟨ _ := _ ⟩ = $v
 (` x) [ y := v ] with (x Data.Nat.≟ y)
 ... | yes refl = v
 ... | no ¬x≡y  = (` x)
-(ƛ e) [ x := v ] = ƛ (e [ (ℕ.suc x) := v ])
+(ƛ e) [ x := v ] = ƛ (e [ (ℕ.suc x) := (shift v) ])
 (e₁ `· e₂) [ x := v ] = (e₁ [ x := v ]) `· (e₂ [ x := v ])
 (# n) [ x := v ] = # n
 (e₁ `+ e₂) [ x := v ] = (e₁ [ x := v ]) `+ (e₂ [ x := v ])
@@ -365,7 +395,7 @@ infix 0 _—→_
 data _—→_ : Exp → Exp → Set where
   β-· : ∀ {vᵣ eₓ}
     → Value vᵣ
-    → (ƛ eₓ) `· vᵣ —→ (eₓ [ 0 := vᵣ ])
+    → (ƛ eₓ) `· vᵣ —→ shift- (eₓ [ 0 := (shift vᵣ) ]) from 0
 
   β-+ : ∀ {nₗ nᵣ}
     → (# nₗ) `+ (# nᵣ) —→ (# (nₗ Data.Nat.+ nᵣ))
@@ -663,7 +693,7 @@ data _⊢_∶_ where
 
   ⊢-ƛ : ∀ {Γ e τₓ τₑ}
     → Γ ⸴ τₓ ⊢ e ∶ τₑ
-    → Γ ⊢ (ƛ e) ∶ (τₓ ⇒ τₑ)
+    → Γ ⊢ ƛ e ∶ (τₓ ⇒ τₑ)
 
   ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
     → Γ ⊢ e₁ ∶ (τ₂ ⇒ τ₁)
@@ -783,18 +813,19 @@ weaken {Γ} ⊢e = rename-exp ρ ⊢e
     → Γ ∋ z ∶ C
   ρ ()
 
--- subst : ∀ {Γ v e τᵥ τₑ}
---   → ∅ ⊢ v ∶ τᵥ
---   → Γ ⸴ τᵥ ⊢ e ∶ τₑ
---   → Γ ⊢ (e [ 0 := v ]) ∶ τₑ
--- subst {e = ` ℕ.zero} ⊢ᵥ (⊢-` ∋-Z) = {!!}
--- subst {e = ` (ℕ.suc x)} ⊢ᵥ (⊢-` (∋-S {x = y} ∋)) = ⊥-elim {!!}
--- subst ⊢ᵥ (⊢-ƛ ⊢ₑ) = {!!}
--- subst ⊢ᵥ (⊢-· ⊢ₑ ⊢ₑ₁) = {!!}
--- subst ⊢ᵥ (⊢-+ ⊢ₑ ⊢ₑ₁) = {!!}
--- subst ⊢ᵥ ⊢-# = {!!}
--- subst ⊢ᵥ (⊢-φ x ⊢ₑ) = {!!}
--- subst ⊢ᵥ (⊢-δ ⊢ₑ) = {!!}
+·-preserve : ∀ {Γ v e τᵥ τₑ}
+  → ∅ ⊢ v ∶ τᵥ
+  → Γ ⸴ τᵥ ⊢ e ∶ τₑ
+  → Γ ⊢ (shift- e [ 0 := shift v ]) ∶ τₑ
+·-preserve ⊢ᵥ (⊢-` ∋-Z) = weaken {!!}
+·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.zero} ∋ₓ)) = {!!}
+·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.suc x} ∋ₓ)) = ⊢-` ∋ₓ
+·-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = {!!}
+·-preserve ⊢ᵥ (⊢-· ⊢ₑ ⊢ₑ₁) = {!!}
+·-preserve ⊢ᵥ (⊢-+ ⊢ₑ ⊢ₑ₁) = {!!}
+·-preserve ⊢ᵥ ⊢-# = {!!}
+·-preserve ⊢ᵥ (⊢-φ x ⊢ₑ) = {!!}
+·-preserve ⊢ᵥ (⊢-δ ⊢ₑ) = {!!}
 
 —→-preserve : ∀ {Γ e τ e′}
   → Γ ⊢ e ∶ τ
