@@ -1,7 +1,8 @@
 open import Data.String using (String)
 open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n)
+open import Data.Nat.Properties using (≤-refl)
 open import Data.Integer using (ℤ)
-open import Data.Product using (_,_; _×_; proj₁; proj₂)
+open import Data.Product using (_,_; _×_; proj₁; proj₂; ∃; ∃-syntax)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Empty using (⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
@@ -213,7 +214,7 @@ value? (δ x ⇒ e) = no (λ ())
 
 data Normal : Exp → Set where
   N-` : ∀ {x} → Normal (` x)
-  N-ƛ : ∀ {x e} → Normal e → Normal (ƛ e)
+  N-ƛ : ∀ {e} → Normal e → Normal (ƛ e)
   N-· : ∀ {e₁ e₂} → Normal e₁ → Normal e₂ → Normal (e₁ `· e₂)
   N-# : ∀ {n} → Normal (# n)
   N-+ : ∀ {e₁ e₂} → Normal e₁ → Normal e₂ → Normal (e₁ `+ e₂)
@@ -238,7 +239,7 @@ data PatVal : Pat → Set where
   PV-# : ∀ {n}
     → PatVal (# n)
 
-  PV-ƛ : ∀ {x e}
+  PV-ƛ : ∀ {e}
     → PatVal (ƛ e)
 
 strip : Exp → Exp
@@ -393,18 +394,18 @@ $v matches? e | no ¬V = no λ { (M-V V) → ¬V V }
 infix 0 _—→_
 
 data _—→_ : Exp → Exp → Set where
-  β-· : ∀ {vᵣ eₓ}
+  T-β-· : ∀ {vᵣ eₓ}
     → Value vᵣ
     → (ƛ eₓ) `· vᵣ —→ shift- (eₓ [ 0 := (shift vᵣ) ]) from 0
 
-  β-+ : ∀ {nₗ nᵣ}
+  T-β-+ : ∀ {nₗ nᵣ}
     → (# nₗ) `+ (# nᵣ) —→ (# (nₗ Data.Nat.+ nᵣ))
 
-  β-φ : ∀ {pag v}
+  T-β-φ : ∀ {pag v}
     → Value v
     → (φ pag ⇒ v) —→ v
 
-  β-δ : ∀ {agl v}
+  T-β-δ : ∀ {agl v}
     → Value v
     → (φ agl ⇒ v) —→ v
 
@@ -421,49 +422,49 @@ data _⇒_⟨_⟩ : Exp → Ctx → Exp → Set where
   D-β-` : ∀ {x}
     → (` x) ⇒ ∘ ⟨ (` x) ⟩
 
-  D-ξ-·ₗ : ∀ {eₗ eᵣ ℰ eₗ′}
+  D-ξ-·-l : ∀ {eₗ eᵣ ℰ eₗ′}
     → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
     → (eₗ `· eᵣ) ⇒ (ℰ ·ₗ eᵣ) ⟨ eₗ′ ⟩
 
-  D-ξ-·ᵣ : ∀ {vₗ eᵣ ℰ eᵣ′}
+  D-ξ-·-r : ∀ {vₗ eᵣ ℰ eᵣ′}
     → Value vₗ
     → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
     → (vₗ `· eᵣ) ⇒ (vₗ ·ᵣ ℰ) ⟨ eᵣ′ ⟩
 
-  D-β-· : ∀ {vₗ vᵣ ℰ}
+  D-β-· : ∀ {vₗ vᵣ}
     → Value vₗ
     → Value vᵣ
-    → (vₗ `· vᵣ) ⇒ ℰ ⟨ vₗ `· vᵣ ⟩
+    → (vₗ `· vᵣ) ⇒ ∘ ⟨ vₗ `· vᵣ ⟩
 
-  D-ξ-+ₗ : ∀ {eₗ eᵣ ℰ eₗ′}
+  D-ξ-+-l : ∀ {eₗ eᵣ ℰ eₗ′}
     → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
     → (eₗ `+ eᵣ) ⇒ (ℰ +ₗ eᵣ) ⟨ eₗ′ ⟩
 
-  D-ξ-+ᵣ : ∀ {vₗ eᵣ ℰ eᵣ′}
+  D-ξ-+-r : ∀ {vₗ eᵣ ℰ eᵣ′}
     → Value vₗ
     → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
     → (vₗ `+ eᵣ) ⇒ (vₗ +ᵣ ℰ) ⟨ eᵣ′ ⟩
 
-  D-β-+ : ∀ {vₗ vᵣ ℰ}
+  D-β-+ : ∀ {vₗ vᵣ}
     → Value vₗ
     → Value vᵣ
-    → (vₗ `+ vᵣ) ⇒ ℰ ⟨ vₗ `+ vᵣ ⟩
+    → (vₗ `+ vᵣ) ⇒ ∘ ⟨ vₗ `+ vᵣ ⟩
 
   D-ξ-φ : ∀ {pag e ℰ e′}
     → e ⇒ ℰ ⟨ e′ ⟩
     → (φ pag ⇒ e) ⇒ (φ pag ⇒ ℰ) ⟨ e′ ⟩
 
-  D-β-φ : ∀ {pag v ℰ}
+  D-β-φ : ∀ {pag v}
     → Value v
-    → (φ pag ⇒ v) ⇒ ℰ ⟨ φ pag ⇒ v ⟩
+    → (φ pag ⇒ v) ⇒ ∘ ⟨ φ pag ⇒ v ⟩
 
   D-ξ-δ : ∀ {agl e ℰ e′}
     → e ⇒ ℰ ⟨ e′ ⟩
     → (δ agl ⇒ e) ⇒ (δ agl ⇒ ℰ) ⟨ e′ ⟩
 
-  D-β-δ : ∀ {agl v ℰ}
+  D-β-δ : ∀ {agl v}
     → Value v
-    → (δ agl ⇒ v) ⇒ ℰ ⟨ δ agl ⇒ v ⟩
+    → (δ agl ⇒ v) ⇒ ∘ ⟨ δ agl ⇒ v ⟩
 
 V¬⇒ : ∀ {v ε e}
   → Value v
@@ -475,11 +476,11 @@ V¬⇒ V-ƛ ()
   → e ⇒ ε ⟨ e₀ ⟩
   → ¬ (Value e)
 ⇒¬V D-β-` ()
-⇒¬V (D-ξ-·ₗ _) ()
-⇒¬V (D-ξ-·ᵣ _ _) ()
+⇒¬V (D-ξ-·-l _) ()
+⇒¬V (D-ξ-·-r _ _) ()
 ⇒¬V (D-β-· _ _) ()
-⇒¬V (D-ξ-+ₗ _) ()
-⇒¬V (D-ξ-+ᵣ _ _) ()
+⇒¬V (D-ξ-+-l _) ()
+⇒¬V (D-ξ-+-r _ _) ()
 ⇒¬V (D-β-+ _ _) ()
 ⇒¬V (D-ξ-φ _) ()
 ⇒¬V (D-β-φ _) ()
@@ -573,6 +574,15 @@ strip-instr (I-+-⊥ _ Iₗ Iᵣ) = Eq.cong₂ _`+_ (strip-instr Iₗ) (strip-in
 strip-instr (I-Φ I₀ I₁) = Eq.trans (strip-instr I₁) (strip-instr I₀)
 strip-instr (I-Δ I) = (strip-instr I)
 
+decay : Ctx → Ctx
+decay ∘ = ∘
+decay (ε ·ₗ e) = (decay ε) ·ₗ e
+decay (e ·ᵣ ε) = e ·ᵣ (decay ε)
+decay (ε +ₗ e) = (decay ε) +ₗ e
+decay (e +ᵣ ε) = e +ᵣ (decay ε)
+decay (φ f ⇒ ε) = decay ε
+decay (δ r ⇒ ε) = decay ε
+
 data _⊢_⇝_⊣_ : Act × ℕ → Ctx → Ctx → Act → Set where
   A-∘ : ∀ {act lvl}
     → (act , lvl) ⊢ ∘ ⇝ ∘ ⊣ act
@@ -597,25 +607,15 @@ data _⊢_⇝_⊣_ : Act × ℕ → Ctx → Ctx → Act → Set where
     → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
     → (act , lvl) ⊢ φ pag ⇒ ε ⇝ φ pag ⇒ ε′ ⊣ act′
 
-  A-Δ-1-> : ∀ {act lvl ε ε′ act′ a l}
+  A-Δ-> : ∀ {act lvl ε ε′ act′ a g l}
     → l > lvl
     → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , 𝟙 , l) ⇒ ε ⇝ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , g , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
 
-  A-Δ-1-≤ : ∀ {act lvl ε ε′ act′ a l}
+  A-Δ-≤ : ∀ {act lvl ε ε′ act′ a g l}
     → l ≤ lvl
     → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , 𝟙 , l) ⇒ ε ⇝ ε′ ⊣ act′
-
-  A-Δ-∀-> : ∀ {act lvl ε ε′ act′ a l}
-    → l > lvl
-    → (a , l) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , ⋆ , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
-
-  A-Δ-∀-≤ : ∀ {act lvl ε ε′ act′ a l}
-    → l ≤ lvl
-    → (act , lvl) ⊢ ε ⇝ ε′ ⊣ act′
-    → (act , lvl) ⊢ δ (a , ⋆ , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
+    → (act , lvl) ⊢ δ (a , g , l) ⇒ ε ⇝ δ (a , ⋆ , l) ⇒ ε′ ⊣ act′
 
 data _⊢_↠_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
   skip : ∀ {p a g l e e′ eᵢ e₀ e₀′ ε ε₀}
@@ -626,7 +626,27 @@ data _⊢_↠_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → e′ ⇐ ε ⟨ e₀′ ⟩
     → (p , a , g , l) ⊢ e ↠ e′
 
-infix 0 _⇥_
+data _⊢_⇥_⟨_⟩ : Pat × Act × Gas × ℕ → Exp → Ctx → Exp → Set where
+  skip : ∀ {p a g l e e′ ε e₀}
+    → (p , a , g , l) ⊢ e ↠ e′
+    → (p , a , g , l) ⊢ e′ ⇥ ε ⟨ e₀ ⟩
+    → (p , a , g , l) ⊢ e ⇥ ε ⟨ e₀ ⟩
+
+  step : ∀ {p a g l e eᵢ e₀ ε ε₀}
+    → (p , a , g , l) ⊢ e ⇝ eᵢ
+    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+    → (a , l) ⊢ ε₀ ⇝ ε ⊣ pause
+    → (p , a , g , l) ⊢ e ⇥ ε ⟨ e₀ ⟩
+
+data _⊢_⇥_value : Pat × Act × Gas × ℕ → Exp → Exp → Set where
+  skip : ∀ {p a g l e e′ v}
+    → (p , a , g , l) ⊢ e ↠ e′
+    → (p , a , g , l) ⊢ e′ ⇥ v value
+    → (p , a , g , l) ⊢ e ⇥ v value
+
+  done : ∀ {p a g l v}
+    → Value v
+    → (p , a , g , l) ⊢ v ⇥ v value
 
 data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
   step : ∀ {p a g l e e′ eᵢ e₀ e₀′ ε ε₀}
@@ -636,6 +656,19 @@ data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → e₀ —→ e₀′
     → e′ ⇐ ε ⟨ e₀′ ⟩
     → (p , a , g , l) ⊢ e ⇥ e′
+
+  skip : ∀ {p a g l e e′ e″ eᵢ e₀ e₀′ ε ε₀}
+    → (p , a , g , l) ⊢ e ⇝ eᵢ
+    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+    → Filter e₀ ⊎ (a , l) ⊢ ε₀ ⇝ ε ⊣ eval
+    → e₀ —→ e₀′
+    → e′ ⇐ ε ⟨ e₀′ ⟩
+    → (p , a , g , l) ⊢ e′ ⇥ e″
+    → (p , a , g , l) ⊢ e ⇥ e″
+
+  done : ∀ {p a g l v}
+    → Value v
+    → (p , a , g , l) ⊢ v ⇥ v
 
 infixr 7 _⇒_
 
@@ -781,13 +814,13 @@ rename-pat ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-pat ρ e₁) (rename-pat ρ e₂
 strip-preserve : ∀ {Γ e τ}
   → Γ ⊢ e ∶ τ
   → Γ ⊢ (strip e) ∶ τ
-strip-preserve (⊢-` ∋-x) = ⊢-` ∋-x
-strip-preserve (⊢-ƛ x⊢e) = ⊢-ƛ (strip-preserve x⊢e)
+strip-preserve (⊢-` ∋-x)   = ⊢-` ∋-x
+strip-preserve (⊢-ƛ x⊢e)   = ⊢-ƛ (strip-preserve x⊢e)
 strip-preserve (⊢-· ⊢₁ ⊢₂) = ⊢-· (strip-preserve ⊢₁) (strip-preserve ⊢₂)
 strip-preserve (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (strip-preserve ⊢₁) (strip-preserve ⊢₂)
-strip-preserve ⊢-# = ⊢-#
+strip-preserve ⊢-#         = ⊢-#
 strip-preserve (⊢-φ ⊢ₚ ⊢ₑ) = strip-preserve ⊢ₑ
-strip-preserve (⊢-δ ⊢ₑ) = strip-preserve ⊢ₑ
+strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
 
 instr-preserve : ∀ {Γ e τ p a g l e′}
   → Γ ⊢ e ∶ τ
@@ -831,40 +864,57 @@ weaken {Γ} ⊢e = rename-exp ρ ⊢e
   → Γ ⊢ e ∶ τ
   → e —→ e′
   → Γ ⊢ e′ ∶ τ
-—→-preserve (⊢-· ⊢ₗ ⊢ᵣ) (β-· Vᵣ) = {!!}
+—→-preserve (⊢-· ⊢ₗ ⊢ᵣ) (T-β-· Vᵣ) = {!!}
 —→-preserve (⊢-+ ⊢ ⊢₁) T = {!!}
 —→-preserve (⊢-φ x ⊢) T = {!!}
 
-data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
-  step : ∀ {p a g l e₀ e₁}
-    → (p , a , g , l) ⊢ e₀ ⇥ e₁
-    → Progress e₀ under (p , a , g , l)
+data ⇒-Progress : Exp → Set where
+  step : ∀ {e ε₀ e₀}
+    → e ⇒ ε₀ ⟨ e₀ ⟩
+    → ⇒-Progress e
 
-  skip : ∀ {p a g l e₀ e₁}
-    → (p , a , g , l) ⊢ e₀ ↠ e₁
-    → Progress e₀ under (p , a , g , l)
-
-  done : ∀ {p a g l v}
+  done : ∀ {v}
     → Value v
-    → Progress v under (p , a , g , l)
+    → ⇒-Progress v
 
-progress : ∀ {p a g l e τ}
+⇒-progress : ∀ {e τ}
   → ∅ ⊢ e ∶ τ
-  → Progress e under (p , a , g , l)
-progress (⊢-ƛ ⊢) = done V-ƛ
-progress {p = p} {e = e} (⊢-· ⊢₁ ⊢₂) with (progress ⊢₁) with (progress ⊢₂) with (p matches? e)
-progress (⊢-· ⊢₁ ⊢₂) | step S₁ | step S₂ | M = step (step {!!} {!!} {!!} {!!} {!!})
-progress (⊢-· ⊢₁ ⊢₂) | step S | skip x | M = {!!}
-progress (⊢-· ⊢₁ ⊢₂) | step S | done x | M = {!!}
-progress (⊢-· ⊢₁ ⊢₂) | skip x | _ | M = {!!}
-progress (⊢-· ⊢₁ ⊢₂) | done x | _ | M = {!!}
-progress (⊢-+ ⊢₁ ⊢₂) = {!!}
-progress ⊢-# = {!!}
-progress (⊢-φ x ⊢) = {!!}
-progress (⊢-δ ⊢) = {!!}
+  → ⇒-Progress e
+⇒-progress (⊢-ƛ ⊢) = done V-ƛ
+⇒-progress (⊢-· ⊢₁ ⊢₂) with (⇒-progress ⊢₁) with (⇒-progress ⊢₂)
+... | step ⇒₁ | _        = step (D-ξ-·-l ⇒₁)
+... | done V₁  | step ⇒₂ = step (D-ξ-·-r V₁ ⇒₂)
+... | done V₁  | done V₂  = step (D-β-· V₁ V₂)
+⇒-progress (⊢-+ ⊢₁ ⊢₂) with (⇒-progress ⊢₁) with (⇒-progress ⊢₂)
+... | step ⇒₁ | _        = step (D-ξ-+-l ⇒₁)
+... | done V₁  | step ⇒₂ = step (D-ξ-+-r V₁ ⇒₂)
+... | done V₁  | done V₂  = step (D-β-+ V₁ V₂)
+⇒-progress ⊢-# = done V-#
+⇒-progress (⊢-φ f ⊢) with (⇒-progress ⊢)
+... | step ⇒ₑ = step (D-ξ-φ ⇒ₑ)
+... | done Vₑ  = step (D-β-φ Vₑ) 
+⇒-progress (⊢-δ ⊢) with (⇒-progress ⊢)
+... | step ⇒ₑ = step (D-ξ-δ ⇒ₑ)
+... | done Vₑ  = step (D-β-δ Vₑ) 
 
-step-preserve : ∀ {Γ e τ p a g l e′}
-  → Γ ⊢ e ∶ τ
+progress-instr : ∀ {p a g l e e′}
   → (p , a , g , l) ⊢ e ⇥ e′
-  → Γ ⊢ e′ ∶ τ
-step-preserve ⊢ (step x x₁ x₂ x₃ x₄) = {!!}
+  → ∃[ eᵢ ] (p , a , g , l) ⊢ e ⇝ eᵢ
+progress-instr (step {eᵢ = eᵢ} I _ _ _ _) = eᵢ , I
+progress-instr (skip {eᵢ = eᵢ} I _ _ _ _ _) = eᵢ , I
+progress-instr {e = e} (done V) = e , I-V V
+
+data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
+  P : ∀ {p a g l e e′}
+    → (p , a , g , l) ⊢ e ⇥ e′
+    → Progress e under (p , a , g , l)
+
+-- progress : ∀ {p a g l e τ}
+--   → ∅ ⊢ e ∶ τ
+--   → Progress e under (p , a , g , l)
+-- progress (⊢-ƛ ⊢) = P (done V-ƛ)
+-- progress {p = p} {e = e} (⊢-· ⊢₁ ⊢₂) with (p matches? e)
+-- progress (⊢-+ ⊢ ⊢₁) = {!!}
+-- progress ⊢-# = {!!}
+-- progress (⊢-φ x ⊢) = {!!}
+-- progress (⊢-δ ⊢) = {!!}
