@@ -1,5 +1,5 @@
 open import Data.String using (String)
-open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n; _≤?_; _<?_; _≟_)
+open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n; _≤?_; _<?_; _≟_; pred; suc; zero)
 open import Data.Nat.Properties using (≤-refl)
 open import Data.Integer using (ℤ)
 open import Data.Product using (_,_; _×_; proj₁; proj₂; ∃; ∃-syntax)
@@ -9,7 +9,7 @@ open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
 import Relation.Nullary.Decidable as Dec
 open import Relation.Binary.Definitions using (tri<; tri>; tri≈)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; cong; _≢_; cong₂)
+open Eq using (_≡_; refl; cong; _≢_; cong₂; sym)
 open import Function using (_↔_)
 
 data Act : Set where
@@ -270,46 +270,60 @@ patternize (L `+ M) = (patternize L) `+ (patternize M)
 patternize (φ x ⇒ L) = patternize L
 patternize (δ x ⇒ L) = patternize L
 
-shift_from : Exp → ℕ → Exp
-shiftₚ_from : Pat → ℕ → Pat
+↑-ℕ : ℕ → ℕ → ℕ
+↑-ℕ zero zero = suc zero
+↑-ℕ zero (suc c) = zero
+↑-ℕ (suc x) zero = suc (suc x)
+↑-ℕ (suc x) (suc c) = suc (↑-ℕ x c)
 
-shift ` x from d with (x Data.Nat.<? d)
-... | yes _ = ` x
-... | no _ = ` (ℕ.suc x)
-shift ƛ e from d = ƛ shift e from (ℕ.suc d)
-shift eₗ `· eᵣ from d  = (shift eₗ from d) `· (shift eᵣ from d)
-shift # x from d  = # x
-shift eₗ `+ eᵣ from d  = (shift eₗ from d) `+ (shift eᵣ from d)
-shift φ (p , a , g) ⇒ e from d  = φ ((shiftₚ p from d) , a , g) ⇒ (shift e from d)
-shift δ agl ⇒ e from d  = δ agl ⇒ (shift e from d)
+↑_from : Exp → ℕ → Exp
+↑ₚ_from : Pat → ℕ → Pat
 
-shiftₚ $e from d = $e
-shiftₚ $v from d = $v
-shiftₚ ` x from d with (x Data.Nat.<? d)
-... | yes _ = ` x
-... | no _ = ` (ℕ.suc x)
-shiftₚ ƛ e from d = ƛ shift e from (ℕ.suc d)
-shiftₚ eₗ `· eᵣ from d  = (shiftₚ eₗ from d) `· (shiftₚ eᵣ from d)
-shiftₚ # x from d  = # x
-shiftₚ eₗ `+ eᵣ from d  = (shiftₚ eₗ from d) `+ (shiftₚ eᵣ from d)
+↑ ` x from d = ` ↑-ℕ x d
+↑ ƛ e from d = ƛ (↑ e from (ℕ.suc d))
+↑ eₗ `· eᵣ from d  = (↑ eₗ from d) `· (↑ eᵣ from d)
+↑ # x from d  = # x
+↑ eₗ `+ eᵣ from d  = (↑ eₗ from d) `+ (↑ eᵣ from d)
+↑ φ (p , a , g) ⇒ e from d  = φ ((↑ₚ p from d) , a , g) ⇒ (↑ e from d)
+↑ δ agl ⇒ e from d  = δ agl ⇒ (↑ e from d)
 
-shift : Exp → Exp
-shift e = shift e from 0
+↑ₚ $e from d = $e
+↑ₚ $v from d = $v
+↑ₚ ` x from d = ` ↑-ℕ x d
+↑ₚ ƛ e from d = ƛ ↑ e from (ℕ.suc d)
+↑ₚ eₗ `· eᵣ from d  = (↑ₚ eₗ from d) `· (↑ₚ eᵣ from d)
+↑ₚ # x from d  = # x
+↑ₚ eₗ `+ eᵣ from d  = (↑ₚ eₗ from d) `+ (↑ₚ eᵣ from d)
 
-shift-_from : Exp → ℕ → Exp
-shift- ` ℕ.zero from d = ` ℕ.zero
-shift- ` ℕ.suc x from d with (x Data.Nat.<? d)
-... | yes _ = (` ℕ.suc x)
-... | no _ = (` x)
-shift- ƛ e from d = ƛ shift e from (ℕ.suc d)
-shift- eₗ `· eᵣ from d  = (shift eₗ from d) `· (shift eᵣ from d)
-shift- # x from d  = # x
-shift- eₗ `+ eᵣ from d  = (shift eₗ from d) `+ (shift eᵣ from d)
-shift- φ pag ⇒ e from d  = φ pag ⇒ (shift e from d)
-shift- δ agl ⇒ e from d  = δ agl ⇒ (shift e from d)
+↓-ℕ : ℕ → ℕ → ℕ
+↓-ℕ zero c = zero
+↓-ℕ (suc x) zero = x
+↓-ℕ (suc x) (suc c) = suc (↓-ℕ x c)
 
-shift- : Exp → Exp
-shift- e = shift- e from 0
+↑ : Exp → Exp
+↑ e = ↑ e from 0
+
+↓_from : Exp → ℕ → Exp
+↓ₚ_from : Pat → ℕ → Pat
+
+↓ ` x from d = ` ↓-ℕ x d
+↓ ƛ e from d = ƛ ↓ e from (ℕ.suc d)
+↓ eₗ `· eᵣ from d  = (↓ eₗ from d) `· (↓ eᵣ from d)
+↓ # x from d  = # x
+↓ eₗ `+ eᵣ from d  = (↓ eₗ from d) `+ (↓ eᵣ from d)
+↓ φ (p , ag) ⇒ e from d  = φ ((↓ₚ p from d), ag) ⇒ (↓ e from d)
+↓ δ r ⇒ e from d  = δ r ⇒ (↓ e from d)
+
+↓ₚ $e from d = $e
+↓ₚ $v from d = $v
+↓ₚ ` x from d = ` ↓-ℕ x d
+↓ₚ ƛ e      from d = ƛ ↓ e from (ℕ.suc d)
+↓ₚ eₗ `· eᵣ from d = (↓ₚ eₗ from d) `· (↓ₚ eᵣ from d)
+↓ₚ # x      from d = # x
+↓ₚ eₗ `+ eᵣ from d = (↓ₚ eₗ from d) `+ (↓ₚ eᵣ from d)
+
+↓ : Exp → Exp
+↓ e = ↓ e from 0
 
 _[_:=_] : Exp → ℕ → Exp → Exp
 _⟨_:=_⟩ : Pat → ℕ → Exp → Pat
@@ -319,7 +333,7 @@ $v ⟨ _ := _ ⟩ = $v
 (` x) ⟨ y := v ⟩ with (x Data.Nat.≟ y)
 ... | yes refl = patternize v
 ... | no x≢y = (` x)
-(ƛ e) ⟨ y := v ⟩ = ƛ (e [ (ℕ.suc y) := (shift v) ])
+(ƛ e) ⟨ y := v ⟩ = ƛ (e [ (ℕ.suc y) := (↑ v) ])
 (p₁ `· p₂) ⟨ x := v ⟩ = (p₁ ⟨ x := v ⟩) `· (p₂ ⟨ x := v ⟩)
 (# n) ⟨ _ := _ ⟩ = # n
 (p₁ `+ p₂) ⟨ x := v ⟩ = (p₁ ⟨ x := v ⟩) `+ (p₂ ⟨ x := v ⟩)
@@ -327,7 +341,7 @@ $v ⟨ _ := _ ⟩ = $v
 (` x) [ y := v ] with (x Data.Nat.≟ y)
 ... | yes refl = v
 ... | no ¬x≡y  = (` x)
-(ƛ e) [ x := v ] = ƛ (e [ (ℕ.suc x) := (shift v) ])
+(ƛ e) [ x := v ] = ƛ (e [ (ℕ.suc x) := (↑ v) ])
 (e₁ `· e₂) [ x := v ] = (e₁ [ x := v ]) `· (e₂ [ x := v ])
 (# n) [ x := v ] = # n
 (e₁ `+ e₂) [ x := v ] = (e₁ [ x := v ]) `+ (e₂ [ x := v ])
@@ -409,7 +423,7 @@ infix 0 _—→_
 data _—→_ : Exp → Exp → Set where
   T-β-· : ∀ {vᵣ eₓ}
     → Value vᵣ
-    → (ƛ eₓ) `· vᵣ —→ shift- (eₓ [ 0 := (shift vᵣ) ]) from 0
+    → (ƛ eₓ) `· vᵣ —→ ↓ (eₓ [ 0 := (↑ vᵣ) ]) from 0
 
   T-β-+ : ∀ {nₗ nᵣ}
     → (# nₗ) `+ (# nᵣ) —→ (# (nₗ Data.Nat.+ nᵣ))
@@ -730,6 +744,10 @@ insert : ∀ {Γ : TypCtx} → {n : ℕ} → (p : n ≤ length Γ) → Typ → T
 insert {Γ} {n = ℕ.zero} p τ = Γ ⸴ τ
 insert {Γ ⸴ τ₀} {n = ℕ.suc n} (s≤s p) τ₁ = (insert p τ₁) ⸴ τ₀
 
+remove : ∀ {Γ : TypCtx} → {n : ℕ} → (p : n < length Γ) → TypCtx
+remove {Γ ⸴ τ₀} {n = ℕ.zero} p = Γ
+remove {Γ ⸴ τ₀} {n = ℕ.suc n} (s≤s p) = (remove p) ⸴ τ₀
+
 update : ∀ {Γ : TypCtx} → {n : ℕ} → (p : n < length Γ) → Typ → TypCtx
 update {Γ ⸴ τ₀} {n = ℕ.zero} p τ = Γ ⸴ τ
 update {Γ ⸴ τ₀} {n = ℕ.suc n} (s≤s p) τ₁ = (update p τ₁) ⸴ τ₀
@@ -831,7 +849,7 @@ rename-exp ρ (⊢-ƛ ⊢-N)   = ⊢-ƛ (rename-exp (ext ρ) ⊢-N)
 rename-exp ρ (⊢-· e₁ e₂) = ⊢-· (rename-exp ρ e₁) (rename-exp ρ e₂)
 rename-exp ρ (⊢-+ e₁ e₂) = ⊢-+ (rename-exp ρ e₁) (rename-exp ρ e₂)
 rename-exp ρ ⊢-#         = ⊢-#
-rename-exp ρ (⊢-φ p e)     = ⊢-φ (rename-pat ρ p) (rename-exp ρ e)
+rename-exp ρ (⊢-φ p e)   = ⊢-φ (rename-pat ρ p) (rename-exp ρ e)
 rename-exp ρ (⊢-δ Γ-⊢)   = ⊢-δ (rename-exp ρ Γ-⊢)
 
 rename-pat ρ ⊢-E         = ⊢-E
@@ -873,34 +891,105 @@ insert-> : ∀ {Γ x y τ₁ τ₂}
 insert-> {Γ ⸴ τ′} {ℕ.suc x} {ℕ.zero} (s≤s p) (s≤s x>y) ∋-Z = ∋-Z
 insert-> {Γ ⸴ τ′} {ℕ.suc x} {ℕ.suc y} (s≤s p) (s≤s x>y) (∋-S ∋₂) = ∋-S (insert-> p x>y ∋₂)
 
-shift-preserve : ∀ {Γ e τₑ x}
+↑-preserve : ∀ {Γ e τₑ x}
   → Γ ⊢ e ∶ τₑ
   → (p : x ≤ length Γ)
-  → (∀ {τₓ} → (insert p τₓ) ⊢ (shift e from x) ∶ τₑ)
-shiftₚ-preserve : ∀ {Γ p τₑ x}
+  → (∀ {τₓ} → (insert p τₓ) ⊢ (↑ e from x) ∶ τₑ)
+↑ₚ-preserve : ∀ {Γ p τₑ x}
   → Γ ⊢ p ∻ τₑ
   → (x∈Γ : x ≤ length Γ)
-  → (∀ {τₓ} → (insert x∈Γ τₓ) ⊢ (shiftₚ p from x) ∻ τₑ)
+  → (∀ {τₓ} → (insert x∈Γ τₓ) ⊢ (↑ₚ p from x) ∻ τₑ)
 
-shift-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ with x <? y
-shift-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | yes x<y = ⊢-` (insert-> ∈ {!!} ∋)
-shift-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | no  x≮y = ⊢-` (insert-≤ ∈ {!!} ∋)
-shift-preserve {e = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ (shift-preserve ⊢ (s≤s ∈))
-shift-preserve {e = e₁ `· e₂} (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (shift-preserve ⊢₁ ∈) (shift-preserve ⊢₂ ∈)
-shift-preserve {e = # x} ⊢-# ∈ = ⊢-#
-shift-preserve {e = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (shift-preserve ⊢₁ ∈) (shift-preserve ⊢₂ ∈)
-shift-preserve {e = φ f ⇒ e} (⊢-φ ⊢ₚ ⊢ₑ) ∈ = ⊢-φ (shiftₚ-preserve ⊢ₚ ∈) (shift-preserve ⊢ₑ ∈)
-shift-preserve {e = δ r ⇒ e} (⊢-δ ⊢) ∈ = ⊢-δ (shift-preserve ⊢ ∈)
+↑-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ with x <? y
+↑-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | yes x<y = {!!}
+↑-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | no  x≮y = ⊢-` {!!}
+↑-preserve {e = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ (↑-preserve ⊢ (s≤s ∈))
+↑-preserve {e = e₁ `· e₂} (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (↑-preserve ⊢₁ ∈) (↑-preserve ⊢₂ ∈)
+↑-preserve {e = # x} ⊢-# ∈ = ⊢-#
+↑-preserve {e = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (↑-preserve ⊢₁ ∈) (↑-preserve ⊢₂ ∈)
+↑-preserve {e = φ f ⇒ e} (⊢-φ ⊢ₚ ⊢ₑ) ∈ = ⊢-φ (↑ₚ-preserve ⊢ₚ ∈) (↑-preserve ⊢ₑ ∈)
+↑-preserve {e = δ r ⇒ e} (⊢-δ ⊢) ∈ = ⊢-δ (↑-preserve ⊢ ∈)
 
-shiftₚ-preserve ⊢-E ∈ = ⊢-E
-shiftₚ-preserve ⊢-V ∈ = ⊢-V
-shiftₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ with x <? y
-shiftₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ | yes x<y = ⊢-` (insert-> ∈ {!!} ∋)
-shiftₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ | no  x≮y = ⊢-` (insert-≤ ∈ {!!} ∋)
-shiftₚ-preserve {p = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ (shift-preserve ⊢ (s≤s ∈))
-shiftₚ-preserve {p = e₁ `· e₂} (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (shiftₚ-preserve ⊢₁ ∈) (shiftₚ-preserve ⊢₂ ∈)
-shiftₚ-preserve {p = # x} ⊢-# p = ⊢-#
-shiftₚ-preserve {p = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (shiftₚ-preserve ⊢₁ ∈) (shiftₚ-preserve ⊢₂ ∈)
+↑ₚ-preserve ⊢-E ∈ = ⊢-E
+↑ₚ-preserve ⊢-V ∈ = ⊢-V
+↑ₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ with x <? y
+↑ₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ | yes x<y = ⊢-` (insert-> ∈ {!!} {!!})
+↑ₚ-preserve {p = ` x} {x = y} (⊢-` ∋) ∈ | no  x≮y = ⊢-` {!!}
+↑ₚ-preserve {p = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ (↑-preserve ⊢ (s≤s ∈))
+↑ₚ-preserve {p = e₁ `· e₂} (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (↑ₚ-preserve ⊢₁ ∈) (↑ₚ-preserve ⊢₂ ∈)
+↑ₚ-preserve {p = # x} ⊢-# p = ⊢-#
+↑ₚ-preserve {p = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (↑ₚ-preserve ⊢₁ ∈) (↑ₚ-preserve ⊢₂ ∈)
+
+remove-≤ : ∀ {Γ x y τ}
+  → (∈ : x < length Γ)
+  → x ≤ y
+  → Γ ∋ (ℕ.suc y) ∶ τ
+  → (remove ∈) ∋ y ∶ τ
+remove-≤ {Γ ⸴ τ′} {ℕ.zero} {ℕ.zero} p x<y (∋-S ∋) = ∋
+remove-≤ {Γ ⸴ τ′} {ℕ.zero} {ℕ.suc y} p x<y (∋-S ∋) = ∋
+remove-≤ {Γ ⸴ τ′} {ℕ.suc x} {ℕ.suc y} (s≤s p) (s≤s x≤y) (∋-S ∋₂) = ∋-S (remove-≤ p x≤y ∋₂)
+
+remove-> : ∀ {Γ x y τ₂}
+  → (∈ : x < length Γ)
+  → x > y
+  → Γ ∋ y ∶ τ₂
+  → (remove ∈) ∋ y ∶ τ₂
+remove-> {Γ ⸴ τ′} {ℕ.suc x} {ℕ.zero} (s≤s p) (s≤s x>y) ∋-Z = ∋-Z
+remove-> {Γ ⸴ τ′} {ℕ.suc x} {ℕ.suc y} (s≤s p) (s≤s x>y) (∋-S ∋₂) = ∋-S (remove-> p x>y ∋₂)
+
+↓-preserve : ∀ {Γ e τₑ x}
+  → Γ ⊢ e ∶ τₑ
+  → (∈ : x < length Γ)
+  → (remove ∈) ⊢ (↓ e from x) ∶ τₑ
+↓ₚ-preserve : ∀ {Γ p τₑ x}
+  → Γ ⊢ p ∻ τₑ
+  → (∈ : x < length Γ)
+  → (remove ∈) ⊢ (↓ₚ p from x) ∻ τₑ
+
+↓-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ with x <? y
+↓-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | yes x<y = {!!}
+↓-preserve {e = ` x} {x = y} (⊢-` ∋) ∈ | no  x≮y = {!!}
+↓-preserve {e = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ {!!}
+↓-preserve (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (↓-preserve ⊢₁ ∈) (↓-preserve ⊢₂ ∈)
+↓-preserve {e = # x} ⊢-# ∈ = ⊢-#
+↓-preserve {e = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (↓-preserve ⊢₁ ∈) (↓-preserve ⊢₂ ∈)
+↓-preserve {e = φ f ⇒ e} (⊢-φ ⊢ₚ ⊢ₑ) ∈ = ⊢-φ (↓ₚ-preserve ⊢ₚ ∈) (↓-preserve ⊢ₑ ∈)
+↓-preserve {e = δ r ⇒ e} (⊢-δ ⊢) ∈ = ⊢-δ (↓-preserve ⊢ ∈)
+
+↓ₚ-preserve ⊢-E ∈ = ⊢-E
+↓ₚ-preserve ⊢-V ∈ = ⊢-V
+↓ₚ-preserve {p = ` ℕ.zero} {x = ℕ.zero} (⊢-` ∋) ∈ = ⊢-` (remove-≤ ∈ {!!} {!!})
+↓ₚ-preserve {p = ` ℕ.zero} {x = ℕ.suc y} (⊢-` ∋) ∈ = ⊢-` (remove-≤ ∈ {!!} {!!})
+↓ₚ-preserve {p = ` ℕ.suc x} {x = y} (⊢-` ∋) ∈ = {!!}
+↓ₚ-preserve {p = ƛ e} (⊢-ƛ ⊢) ∈ = ⊢-ƛ (↓-preserve ⊢ (s≤s ∈))
+↓ₚ-preserve {p = e₁ `· e₂} (⊢-· ⊢₁ ⊢₂) ∈ = ⊢-· (↓ₚ-preserve ⊢₁ ∈) (↓ₚ-preserve ⊢₂ ∈)
+↓ₚ-preserve {p = # x} ⊢-# p = ⊢-#
+↓ₚ-preserve {p = e₁ `+ e₂} (⊢-+ ⊢₁ ⊢₂) ∈ = ⊢-+ (↓ₚ-preserve ⊢₁ ∈) (↓ₚ-preserve ⊢₂ ∈)
+
+↓↑-ℕ : ∀ {x n} → ↓-ℕ (↑-ℕ x n) n ≡ x
+↓↑-ℕ {zero} {zero} = refl
+↓↑-ℕ {zero} {suc n} = refl
+↓↑-ℕ {suc x} {zero} = refl
+↓↑-ℕ {suc x} {suc n} = cong suc ↓↑-ℕ
+
+↓↑-exp : ∀ {e n} → ↓ (↑ e from n) from (n) ≡ e
+↓↑-pat : ∀ {p n} → ↓ₚ (↑ₚ p from n) from (n) ≡ p
+
+↓↑-exp {` x} {n} = cong `_ ↓↑-ℕ
+↓↑-exp {ƛ e} = cong ƛ_ ↓↑-exp
+↓↑-exp {e₁ `· e₂} = cong₂ _`·_ ↓↑-exp ↓↑-exp
+↓↑-exp {# x} = refl
+↓↑-exp {e₁ `+ e₂} = cong₂ _`+_ ↓↑-exp ↓↑-exp
+↓↑-exp {φ p , a , g ⇒ e} = cong₂ (λ p e → φ (p , a , g) ⇒ e) ↓↑-pat ↓↑-exp
+↓↑-exp {δ x ⇒ e} = cong (δ x ⇒_) ↓↑-exp
+
+↓↑-pat {$e} {n} = refl
+↓↑-pat {$v} {n} = refl
+↓↑-pat {` x} {n} = cong `_ ↓↑-ℕ
+↓↑-pat {ƛ x} {n} = cong ƛ_ ↓↑-exp
+↓↑-pat {p `· p₁} {n} = cong₂ _`·_ ↓↑-pat ↓↑-pat
+↓↑-pat {# x} {n} = refl
+↓↑-pat {p `+ p₁} {n} = cong₂ _`+_ ↓↑-pat ↓↑-pat
 
 update-≡ : ∀ {Γ v τₓ}
   → (p : v < length Γ)
@@ -940,32 +1029,43 @@ update-≢ {Γ} {x} {y} p x≢y ∋₂ | tri> _ _ x>y  = update-> p x>y ∋₂
 ∋⇒∈ ∋-Z = s≤s z≤n
 ∋⇒∈ (∋-S ∋) = s≤s (∋⇒∈ ∋)
 
-shift-miss : ∀ {Γ e τ}
+↑-miss : ∀ {Γ e τ}
   → Γ ⊢ e ∶ τ
-  → Γ ⊢ (shift e from (length Γ)) ∶ τ
-shiftₚ-miss : ∀ {Γ p τ}
+  → Γ ⊢ (↑ e from (length Γ)) ∶ τ
+↑ₚ-miss : ∀ {Γ p τ}
   → Γ ⊢ p ∻ τ
-  → (shiftₚ p from (length Γ)) ≡ p
+  → Γ ⊢ (↑ₚ p from (length Γ)) ∻ τ
 
-shift-miss {Γ} (⊢-` {x = x} ∋) with x <? length Γ
-shift-miss {Γ} (⊢-` {x = x} ∋) | yes x∈Γ = ⊢-` ∋
-shift-miss {Γ} (⊢-` {x = x} ∋) | no  x∉Γ = ⊥-elim (x∉Γ (∋⇒∈ ∋))
-shift-miss (⊢-ƛ ⊢) = ⊢-ƛ {!!}
-shift-miss (⊢-· ⊢₁ ⊢₂) = {!!}
-shift-miss (⊢-+ ⊢₁ ⊢₂) = {!!}
-shift-miss ⊢-# = {!!}
-shift-miss (⊢-φ {ag = ag} ⊢ₚ ⊢ₑ) = {!!}
-shift-miss (⊢-δ {agl = agl} ⊢) = {!!}
+↑-miss {Γ} (⊢-` {x = x} ∋) with x <? length Γ
+↑-miss {Γ} (⊢-` {x = x} ∋) | yes x∈Γ = ⊢-` {!!}
+↑-miss {Γ} (⊢-` {x = x} ∋) | no  x∉Γ = ⊥-elim (x∉Γ (∋⇒∈ ∋))
+↑-miss (⊢-ƛ ⊢) = ⊢-ƛ (↑-miss ⊢)
+↑-miss (⊢-· ⊢₁ ⊢₂) = ⊢-· (↑-miss ⊢₁) (↑-miss ⊢₂)
+↑-miss (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (↑-miss ⊢₁) (↑-miss ⊢₂)
+↑-miss ⊢-# = ⊢-#
+↑-miss (⊢-φ ⊢ₚ ⊢ₑ) = ⊢-φ (↑ₚ-miss ⊢ₚ) (↑-miss ⊢ₑ)
+↑-miss (⊢-δ ⊢) = ⊢-δ (↑-miss ⊢)
 
--- shiftₚ-miss {Γ} ⊢-E = refl
--- shiftₚ-miss {Γ} ⊢-V = refl
--- shiftₚ-miss {Γ} (⊢-` {x = x} ∋) with x <? length Γ
--- shiftₚ-miss {Γ} (⊢-` ∋) | yes x∈Γ = refl
--- shiftₚ-miss {Γ} (⊢-` ∋) | no  x∉Γ = ⊥-elim (x∉Γ (∋⇒∈ ∋))
--- shiftₚ-miss {Γ} (⊢-ƛ ⊢) = cong ƛ_ (shift-miss ⊢)
--- shiftₚ-miss (⊢-· ⊢₁ ⊢₂) = cong₂ _`·_ (shiftₚ-miss ⊢₁) (shiftₚ-miss ⊢₂)
--- shiftₚ-miss (⊢-+ ⊢₁ ⊢₂) = cong₂ _`+_ (shiftₚ-miss ⊢₁) (shiftₚ-miss ⊢₂)
--- shiftₚ-miss {Γ} ⊢-# = refl
+↑ₚ-miss ⊢-E = ⊢-E
+↑ₚ-miss ⊢-V = ⊢-V
+↑ₚ-miss {Γ} (⊢-` {x = x} ∋) with x <? length Γ
+↑ₚ-miss (⊢-` ∋) | yes x∈Γ = ⊢-` {!!}
+↑ₚ-miss (⊢-` ∋) | no  x∉Γ = ⊥-elim (x∉Γ (∋⇒∈ ∋))
+↑ₚ-miss (⊢-ƛ ⊢) = ⊢-ƛ (↑-miss ⊢)
+↑ₚ-miss (⊢-· ⊢₁ ⊢₂) = ⊢-· (↑ₚ-miss ⊢₁) (↑ₚ-miss ⊢₂)
+↑ₚ-miss (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (↑ₚ-miss ⊢₁) (↑ₚ-miss ⊢₂)
+↑ₚ-miss ⊢-# = ⊢-#
+
+patternize-preserve : ∀ {Γ e τ}
+  → Γ ⊢ e ∶ τ
+  → Γ ⊢ patternize e ∻ τ
+patternize-preserve (⊢-` ∋) = ⊢-` ∋
+patternize-preserve (⊢-ƛ ⊢) = ⊢-ƛ ⊢
+patternize-preserve (⊢-· ⊢₁ ⊢₂) = ⊢-· (patternize-preserve ⊢₁) (patternize-preserve ⊢₂)
+patternize-preserve (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (patternize-preserve ⊢₁) (patternize-preserve ⊢₂)
+patternize-preserve ⊢-# = ⊢-#
+patternize-preserve (⊢-φ ⊢ₚ ⊢ₑ) = patternize-preserve ⊢ₑ
+patternize-preserve (⊢-δ ⊢) = patternize-preserve ⊢
 
 subst : ∀ {Γ v τᵥ e τₑ x}
   → (p : x < length Γ)
@@ -982,7 +1082,7 @@ subst {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) with x Data.Nat.≟ y
 subst {τᵥ = τᵥ} {τₑ = τₑ} {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) | yes refl with ((∋-functional {τ₂ = τₑ} (update-≡ {τₓ = τᵥ} p)) ∋)
 subst {τᵥ = τᵥ} {τₑ = τᵥ} {x = y} p ⊢ᵥ (⊢-` {x = y} ∋) | yes refl | refl = weaken ⊢ᵥ
 subst {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) | no x≢y = ⊢-` (update-≢ p x≢y ∋)
-subst p ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ (subst (s≤s p) (shift-miss ⊢ᵥ) ⊢ₑ)
+subst p ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ (subst (s≤s p) (↑-miss ⊢ᵥ) ⊢ₑ)
 subst p ⊢ᵥ (⊢-· ⊢₁ ⊢₂) = ⊢-· (subst p ⊢ᵥ ⊢₁) (subst p ⊢ᵥ ⊢₂)
 subst p ⊢ᵥ (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (subst p ⊢ᵥ ⊢₁) (subst p ⊢ᵥ ⊢₂)
 subst p ⊢ᵥ ⊢-# = ⊢-#
@@ -993,9 +1093,9 @@ substₚ {p = $e} ∈ ⊢ = λ _ → ⊢-E
 substₚ {p = $v} ∈ ⊢ = λ _ → ⊢-V
 substₚ {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) with x Data.Nat.≟ y
 substₚ {τᵥ = τᵥ} {τₚ = τₚ} {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) | yes refl with ((∋-functional {τ₂ = τₚ} (update-≡ {τₓ = τᵥ} p)) ∋)
-substₚ {τᵥ = τᵥ} {τₚ = τᵥ} {x = y} p ⊢ᵥ (⊢-` {x = y} ∋) | yes refl | refl = {!!}
+substₚ {τᵥ = τᵥ} {τₚ = τᵥ} {x = y} p ⊢ᵥ (⊢-` {x = y} ∋) | yes refl | refl = patternize-preserve (weaken ⊢ᵥ)
 substₚ {x = y} p ⊢ᵥ (⊢-` {x = x} ∋) | no x≢y = ⊢-` (update-≢ p x≢y ∋)
-substₚ p ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ (subst (s≤s p) (shift-miss ⊢ᵥ) ⊢ₑ)
+substₚ p ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ (subst (s≤s p) (↑-miss ⊢ᵥ) ⊢ₑ)
 substₚ p ⊢ᵥ (⊢-· ⊢₁ ⊢₂) = ⊢-· (substₚ p ⊢ᵥ ⊢₁) (substₚ p ⊢ᵥ ⊢₂)
 substₚ p ⊢ᵥ (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (substₚ p ⊢ᵥ ⊢₁) (substₚ p ⊢ᵥ ⊢₂)
 substₚ p ⊢ᵥ ⊢-# = ⊢-#
@@ -1059,14 +1159,20 @@ exts-pat ρ (⊢-· ⊢₁ ⊢₂) = ⊢-· (exts-pat ρ ⊢₁) (exts-pat ρ �
 exts-pat ρ ⊢-# = ⊢-#
 exts-pat ρ (⊢-+ ⊢₁ ⊢₂) = ⊢-+ (exts-pat ρ ⊢₁) (exts-pat ρ ⊢₂)
 
-·-preserve : ∀ {Γ v e τᵥ τₑ}
+≡-app : ∀ {A : Set₁} {x y : Set} → x ≡ y → x → y
+≡-app refl x = x
+
+cong-app : ∀ {A : Set} {x y : A} → (f : A → Set) → x ≡ y → f x → f y
+cong-app f refl fx = fx
+
+·-preserve : ∀ {Γ v e τᵥ τₑ n}
   → ∅ ⊢ v ∶ τᵥ
   → Γ ⸴ τᵥ ⊢ e ∶ τₑ
-  → Γ ⊢ (shift- e [ 0 := shift v ]) ∶ τₑ
-·-preserve ⊢ᵥ (⊢-` ∋-Z) = weaken {!!}
+  → Γ ⊢ (↓ (e [ 0 := ↑ v ]) from 0) ∶ τₑ
+·-preserve {v = v} {τᵥ = τᵥ} {n = n} ⊢ᵥ (⊢-` ∋-Z) = weaken {!!}
 ·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.zero} ∋ₓ)) = {!!}
-·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.suc x} ∋ₓ)) = ⊢-` ∋ₓ
-·-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = {!!}
+·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.suc x} ∋ₓ)) = {!!}
+·-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ {!!}
 ·-preserve ⊢ᵥ (⊢-· ⊢ₑ ⊢ₑ₁) = {!!}
 ·-preserve ⊢ᵥ (⊢-+ ⊢ₑ ⊢ₑ₁) = {!!}
 ·-preserve ⊢ᵥ ⊢-# = {!!}
