@@ -9,16 +9,6 @@ module Subst where
   module Inner where
     open import Core
 
-    [_↦_]_ : ℕ → ℕ → Exp → Exp
-    [ k ↦ y ] (` x) = {!!}
-    [ k ↦ y ] (! x) = {!!}
-    [ k ↦ y ] (ƛ e) = {!!}
-    [ k ↦ y ] (e · e₁) = {!!}
-    [ k ↦ y ] (# n) = {!!}
-    [ k ↦ y ] (e + e₁) = {!!}
-    [ k ↦ y ] φ f e = {!!}
-    [ k ↦ y ] δ r e = {!!}
-
     _↑-exp_ : Exp → ℕ → Exp
     _↑-pat_ : Pat → ℕ → Pat
 
@@ -98,28 +88,50 @@ module Subst where
     subst-pat (l + r) y v = (subst-pat l y v) + (subst-pat r y v)
 
   open Inner
-  module Exp where
-    open import Core
-    infixl 3 _↑_
+  open import Core using ()
 
-    _↑_ : Exp → ℕ → Exp
-    e ↑ n = e ↑-exp n
+  record Term (T : Set) : Set where
+    field
+      shift-up   : T → ℕ → T
+      shift-down : T → ℕ → T
+      subst      : T → ℕ → Core.Exp → T
 
-    _↓_ : Exp → ℕ → Exp
-    e ↓ n = e ↓-exp n
+  _↑_ : {T : Set} ⦃ TermT : Term T ⦄ → T → ℕ → T
+  _↑_ ⦃ TermT ⦄ e n = Term.shift-up TermT e n
 
-    [_/_]_ : Exp → ℕ → Exp → Exp
-    [ v / x ] e = subst-exp e x v
+  _↓_ : {T : Set} ⦃ TermT : Term T ⦄ → T → ℕ → T
+  _↓_ ⦃ TermT ⦄ e n = Term.shift-down TermT e n
 
-  module Pat where
-    open import Core
-    infixl 3 _↑_
+  [_/_]_ : {T : Set} ⦃ TermT : Term T ⦄ → T → ℕ → Core.Exp → T
+  [_/_]_ ⦃ TermT = TermT ⦄ v x e = Term.subst TermT v x e
 
-    _↑_ : Pat → ℕ → Pat
-    p ↑ n = p ↑-pat n
+  instance
+    TermExp : Term Core.Exp
+    TermExp = record { shift-up = _↑-exp_ ; shift-down = _↓-exp_ ; subst = subst-exp }
 
-    ↑¹ : Pat → Pat
-    ↑¹ p = p ↑ 0
+  instance
+    TermPat : Term Core.Pat
+    TermPat = record { shift-up = _↑-pat_ ; shift-down = _↓-pat_ ; subst = subst-pat }
 
-    [_/_]_ : Exp → ℕ → Pat → Pat
-    [ v / x ] e = subst-pat e x v
+  -- module Exp where
+  --   open import Core
+  --   infixl 3 _↑_
+
+  --   _↑_ : Exp → ℕ → Exp
+  --   e ↑ n = e ↑-exp n
+
+  --   _↓_ : Exp → ℕ → Exp
+  --   e ↓ n = e ↓-exp n
+
+  --   [_/_]_ : Exp → ℕ → Exp → Exp
+  --   [ v / x ] e = subst-exp e x v
+
+  -- module Pat where
+  --   open import Core
+  --   infixl 3 _↑_
+
+  --   _↑_ : Pat → ℕ → Pat
+  --   p ↑ n = p ↑-pat n
+
+  --   [_/_]_ : Exp → ℕ → Pat → Pat
+  --   [ v / x ] e = subst-pat e x v

@@ -4,6 +4,7 @@ open import Match
 open import Data.Integer using (+_)
 open import Data.Nat using (ℕ; _≤?_; _>_; _≤_)
 open import Data.Nat.Properties using (≰⇒>)
+open import Data.Sum using (_⊎_)
 open import Data.Product using (_×_; _,_)
 open import Relation.Nullary using (¬_; yes; no)
 
@@ -13,7 +14,7 @@ module Dynamics where
   data _—→_ : Exp → Exp → Set where
     T-β-· : ∀ {v e}
       → v value
-      → (ƛ e) · v —→ (Exp.[ v Exp.↑ 0 / 0 ] e) Exp.↓ 0
+      → (ƛ e) · v —→ ([ v ↑ 0 / 0 ] e) ↓ 0
 
     T-β-φ : ∀ {f v}
       → v value
@@ -219,3 +220,25 @@ module Dynamics where
   ⊢⊣-select {a = act} {l = lvl} {ε = δ (a , _ , l)  ε} with (l ≤? lvl)
   ... | yes ≤ = (A-Δ-≤ ≤) ⊢⊣-select
   ... | no  ≰ = A-Δ-> (≰⇒> ≰) ⊢⊣-select
+
+  data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
+    step : ∀ {p a g l e e′ eᵢ e₀ e₀′ ε₀}
+      → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
+      → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
+      → (A : (a , l) ⊢ ε₀ ⊣ ∥)
+      → (T : e₀ —→ e₀′)
+      → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+      → (p , a , g , l) ⊢ e ⇥ e′
+
+    skip : ∀ {p a g l e e′ e″ eᵢ e₀ e₀′ ε₀}
+      → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
+      → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
+      → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
+      → (T : e₀ —→ e₀′)
+      → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+      → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
+      → (p , a , g , l) ⊢ e ⇥ e″
+
+    done : ∀ {p a g l v}
+      → v value
+      → (p , a , g , l) ⊢ v ⇥ v

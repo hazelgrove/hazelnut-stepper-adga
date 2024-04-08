@@ -27,7 +27,6 @@ module Core where
 
   data Exp where
     `_  : (x : ℕ) → Exp
-    !_  : (x : ℕ) → Exp
     ƛ_  : (e : Exp) → Exp
     _·_ : (l : Exp) → (r : Exp) → Exp
     #_  : (n : ℕ) → Exp
@@ -39,18 +38,10 @@ module Core where
     $e  : Pat
     $v  : Pat
     `_  : (x : ℕ)   → Pat
-    !_  : (x : ℕ)   → Pat
     ƛ_  : (e : Exp) → Pat
     _·_ : (l : Pat) → (r : Pat) → Pat
     #_  : (n : ℕ)   → Pat
     _+_ : (l : Pat) → (r : Pat) → Pat
-
-  infix 4 [_]
-  infix 4 <_>
-
-  data Term : Set → Set where
-    [_] : Exp → Term Exp
-    <_> : Pat → Term Pat
 
   data _value : Exp → Set where
     V-ƛ : ∀ {e}

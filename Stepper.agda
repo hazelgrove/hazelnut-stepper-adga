@@ -1,5 +1,5 @@
 open import Data.String using (String)
-open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n; _≤?_; _<?_; _≟_; pred; suc; zero)
+open import Data.Nat using (ℕ; _+_; _≤_; _>_; _<_; s≤s; z≤n; _≤?_; _<?_; pred; suc; zero)
 open import Data.Nat.Properties using (≤-refl)
 open import Data.Integer using (ℤ)
 open import Data.Product using (_,_; _×_; proj₁; proj₂; ∃; ∃-syntax)
@@ -1168,8 +1168,9 @@ cong-app f refl fx = fx
 ·-preserve : ∀ {Γ v e τᵥ τₑ n}
   → ∅ ⊢ v ∶ τᵥ
   → Γ ⸴ τᵥ ⊢ e ∶ τₑ
-  → Γ ⊢ (↓ (e [ 0 := ↑ v ]) from 0) ∶ τₑ
-·-preserve {v = v} {τᵥ = τᵥ} {n = n} ⊢ᵥ (⊢-` ∋-Z) = weaken {!!}
+  → Γ ⊢ (↓ (e [ n := ↑ v ]) from n) ∶ τₑ
+·-preserve {v = v} {τᵥ = τᵥ} {n = zero} ⊢ᵥ (⊢-` ∋-Z) = weaken (cong-app (λ x → ∅ ⊢ x ∶ τᵥ) (sym ↓↑-exp) ⊢ᵥ)
+·-preserve {v = v} {τᵥ = τᵥ} {n = suc n} ⊢ᵥ (⊢-` ∋-Z) = weaken {!!}
 ·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.zero} ∋ₓ)) = {!!}
 ·-preserve ⊢ᵥ (⊢-` (∋-S {x = ℕ.suc x} ∋ₓ)) = {!!}
 ·-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ {!!}
