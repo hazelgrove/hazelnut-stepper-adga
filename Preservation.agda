@@ -3,39 +3,56 @@ open import Dynamics
 open import Statics
 open import Match
 open import Subst
-open import Data.Nat using (_≤_; _<?_; zero; suc; s≤s; z≤n)
+open import Data.Nat using (_≤_; _<?_; _<_; _≥_; zero; suc; s≤s; z≤n)
+open import Data.Nat.Properties using (≮⇒≥)
 open import Relation.Nullary using (yes; no)
 open import Data.Product using (_×_; _,_; proj₁; proj₂; ∃)
 
 module Preservation where
+  insert-preserve-< : ∀ {Γ x y τ₁ τ₂}
+    → Γ ∋ x ∶ τ₁
+    → (∈ : y ≤ length Γ)
+    → x < y
+    → (insert ∈ τ₂) ∋ x ∶ τ₁
+  insert-preserve-< {Γ ⸴ τ₀} ∋-Z (s≤s ∈) (s≤s x<y) = ∋-Z
+  insert-preserve-< {Γ ⸴ τ₀} (∋-S ∋) (s≤s ∈) (s≤s x<y) = ∋-S (insert-preserve-< ∋ ∈ x<y)
 
-  private
-    insert-preserve : ∀ {Γ x y τ₁ τ₂}
-      → (∈ : x ≤ length Γ)
-      → (x ≤ y)
-      → 
-    ↑-preserve-exp-` : ∀ {Γ τ τ₀ x y}
-      → Γ ∋ x ∶ τ
-      → (∈ : y ≤ length Γ)
-      → (insert ∈ τ₀) ⊢ ((Exp.` x) ↑ y) ∶ τ
-    ↑-preserve-exp-` {x = x} {y} ∋ ∈ with x <? y
-    ↑-preserve-exp-` {x = zero} {suc y} ∋-Z (s≤s ∈) | yes (s≤s z≤n) = ⊢-` ∋-Z
-    ↑-preserve-exp-` {x = suc x} {suc y} (∋-S ∋) (s≤s ∈) | yes (s≤s x<y) = ⊢-` (∋-S {!!})
-    ↑-preserve-exp-` {x = x} {y} ∋ ∈ | no x≮y = {!!}
-    -- ↑-preserve-exp-` {x = zero} {suc y} ∋-Z (s≤s ∈) | yes (s≤s z≤n) = ⊢-` {!!}
-    -- ↑-preserve-exp-` {x = (suc x)} {y} (∋-S ∋) ∈ | yes x<y = ⊢-` {!!}
+  insert-preserve-≥ : ∀ {Γ x y τ₁ τ₂}
+    → Γ ∋ x ∶ τ₁
+    → (∈ : y ≤ length Γ)
+    → y < (suc x)
+    → (insert ∈ τ₂) ∋ (suc x) ∶ τ₁
+  insert-preserve-≥ {Γ ⸴ τ₀} ∋ z≤n (s≤s y<sx) = ∋-S ∋
+  insert-preserve-≥ {Γ ⸴ τ₀} (∋-S ∋) (s≤s ∈) (s≤s y<sx) = ∋-S (insert-preserve-≥ ∋ ∈ y<sx)
 
-    ↑-preserve-exp : ∀ {Γ τ τ₀ y} {e : Exp}
-      → Γ ⊢ e ∶ τ
-      → (∈ : y ≤ length Γ)
-      → (insert ∈ τ₀) ⊢ (e ↑ y) ∶ τ
-    ↑-preserve-exp {y = y} (⊢-` {x = x} ∋) ∈ = {!!}
-    ↑-preserve-exp (⊢-ƛ ⊢) ∈ = {!!}
-    ↑-preserve-exp (⊢-· ⊢ ⊢₁) ∈ = {!!}
-    ↑-preserve-exp (⊢-+ ⊢ ⊢₁) ∈ = {!!}
-    ↑-preserve-exp ⊢-# ∈ = {!!}
-    ↑-preserve-exp (⊢-φ ⊢ₚ ⊢) ∈ = {!!}
-    ↑-preserve-exp (⊢-δ ⊢) ∈ = {!!}
+  ↑-preserve-exp : ∀ {Γ τ τ₀ y} {e : Exp}
+    → Γ ⊢ e ∶ τ
+    → (∈ : y ≤ length Γ)
+    → (insert ∈ τ₀) ⊢ (e ↑ y) ∶ τ
+  ↑-preserve-pat : ∀ {Γ τ τ₀ y} {p : Pat}
+    → Γ ⊢ p ∶ τ
+    → (∈ : y ≤ length Γ)
+    → (insert ∈ τ₀) ⊢ (p ↑ y) ∶ τ
+
+  ↑-preserve-exp {y = y} (⊢-` {x = x} ∋) ∈ with x <? y
+  ... | yes x<y = ⊢-` (insert-preserve-< ∋ ∈ x<y)
+  ... | no x≮y = ⊢-` (insert-preserve-≥ ∋ ∈ (≮⇒≥ λ { (s≤s x<y) → x≮y x<y }))
+  ↑-preserve-exp (⊢-ƛ ⊢) ∈ = ⊢-ƛ (↑-preserve-exp ⊢ (s≤s ∈))
+  ↑-preserve-exp (⊢-· ⊢ₗ ⊢ᵣ) ∈ = ⊢-· (↑-preserve-exp ⊢ₗ ∈) (↑-preserve-exp ⊢ᵣ ∈)
+  ↑-preserve-exp (⊢-+ ⊢ₗ ⊢ᵣ) ∈ = ⊢-+ (↑-preserve-exp ⊢ₗ ∈) (↑-preserve-exp ⊢ᵣ ∈)
+  ↑-preserve-exp ⊢-# ∈ = ⊢-#
+  ↑-preserve-exp (⊢-φ ⊢ₚ ⊢ₑ) ∈ = ⊢-φ (↑-preserve-pat ⊢ₚ ∈) (↑-preserve-exp ⊢ₑ ∈)
+  ↑-preserve-exp (⊢-δ ⊢) ∈ = ⊢-δ (↑-preserve-exp ⊢ ∈)
+
+  ↑-preserve-pat ⊢-E ∈ = ⊢-E
+  ↑-preserve-pat ⊢-V ∈ = ⊢-V
+  ↑-preserve-pat {y = y} (⊢-` {x = x} ∋) ∈ with x <? y
+  ... | yes x<y = ⊢-` (insert-preserve-< ∋ ∈ x<y)
+  ... | no x≮y = ⊢-` (insert-preserve-≥ ∋ ∈ (≮⇒≥ λ { (s≤s x<y) → x≮y x<y }))
+  ↑-preserve-pat (⊢-ƛ ⊢) ∈ = ⊢-ƛ (↑-preserve-exp ⊢ (s≤s ∈))
+  ↑-preserve-pat (⊢-· ⊢ₗ ⊢ᵣ) ∈ = ⊢-· (↑-preserve-pat ⊢ₗ ∈) (↑-preserve-pat ⊢ᵣ ∈)
+  ↑-preserve-pat ⊢-# ∈ = ⊢-#
+  ↑-preserve-pat (⊢-+ ⊢ₗ ⊢ᵣ) ∈ = ⊢-+ (↑-preserve-pat ⊢ₗ ∈) (↑-preserve-pat ⊢ᵣ ∈)
 
   strip-preserve : ∀ {Γ e τ}
     → Γ ⊢ e ∶ τ
