@@ -14,11 +14,38 @@ module Core where
   data Exp : Set
   data Pat : Set
 
-  Filter : Set
-  Filter = Pat × Act × Gas
+  record Filter : Set where
+    inductive
+    field
+      pat : Pat
+      act : Act
+      gas : Gas
 
-  Residue : Set
-  Residue = Act × Gas × ℕ
+  record Residue : Set where
+    field
+      act : Act
+      gas : Gas
+      lvl : ℕ
+
+  record Behavioral (T : Set) : Set where
+    field
+      act : T → Act
+      gas : T → Gas
+
+  instance
+    BehavioralFilter : Behavioral Filter
+    Behavioral.act BehavioralFilter = Filter.act
+    Behavioral.gas BehavioralFilter = Filter.gas
+
+    BehavioralResidue : Behavioral Residue
+    Behavioral.act BehavioralResidue = Residue.act
+    Behavioral.gas BehavioralResidue = Residue.gas
+
+  act : {T : Set} ⦃ BehavioralT : Behavioral T ⦄ → T → Act
+  act ⦃ BehavioralT ⦄ = Behavioral.act BehavioralT
+
+  gas : {T : Set} ⦃ BehavioralT : Behavioral T ⦄ → T → Gas
+  gas ⦃ BehavioralT ⦄ = Behavioral.gas BehavioralT
 
   infix  5 ƛ_
   infixl 7 _+_

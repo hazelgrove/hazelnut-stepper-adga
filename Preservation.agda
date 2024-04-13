@@ -28,11 +28,11 @@ module Preservation where
   ↑-preserve-exp : ∀ {Γ τ τ₀ y} {e : Exp}
     → Γ ⊢ e ∶ τ
     → (∈ : y ≤ length Γ)
-    → (insert ∈ τ₀) ⊢ (e ↑ y) ∶ τ
+    → (insert ∈ τ₀) ⊢ (e ↑ (from y)) ∶ τ
   ↑-preserve-pat : ∀ {Γ τ τ₀ y} {p : Pat}
     → Γ ⊢ p ∶ τ
     → (∈ : y ≤ length Γ)
-    → (insert ∈ τ₀) ⊢ (p ↑ y) ∶ τ
+    → (insert ∈ τ₀) ⊢ (p ↑ (from y)) ∶ τ
 
   ↑-preserve-exp {y = y} (⊢-` {x = x} ∋) ∈ with x <? y
   ... | yes x<y = ⊢-` (insert-preserve-< ∋ ∈ x<y)
@@ -106,11 +106,23 @@ module Preservation where
     → Γ ⊢ e ∶ τ
   ⇐-preserve = {!!}
 
+  ·-preserve : ∀ {Γ} {e v : Exp} {τᵥ τₑ n}
+    → Γ ⊢ v ∶ τᵥ
+    → (Γ ⸴ τᵥ) ⊢ e ∶ τₑ
+    → Γ ⊢ ([ v ↑ (from 0 by (suc n)) / n ] e) ↓ n ∶ τₑ
+  ·-preserve ⊢ᵥ (⊢-` ∋) = {!!}
+  ·-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = ⊢-ƛ {!!}
+  ·-preserve ⊢ᵥ (⊢-· ⊢ₑ ⊢ₑ₁) = {!!}
+  ·-preserve ⊢ᵥ (⊢-+ ⊢ₑ ⊢ₑ₁) = {!!}
+  ·-preserve ⊢ᵥ ⊢-# = {!!}
+  ·-preserve ⊢ᵥ (⊢-φ x ⊢ₑ) = {!!}
+  ·-preserve ⊢ᵥ (⊢-δ ⊢ₑ) = {!!}
+
   —→-preserve : ∀ {Γ e₁ e₂ τ}
     → Γ ⊢ e₁ ∶ τ
     → e₁ —→ e₂
     → Γ ⊢ e₂ ∶ τ
-  —→-preserve (⊢-· ⊢ₗ ⊢ᵣ) (T-β-· Vᵣ) = {!!}
+  —→-preserve (⊢-· (⊢-ƛ ⊢ₗ) ⊢ᵣ) (T-β-· Vᵣ) = {!!}
   —→-preserve (⊢-φ x ⊢) T = {!!}
   —→-preserve (⊢-δ ⊢) T = {!!}
 

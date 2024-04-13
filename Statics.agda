@@ -8,6 +8,8 @@ module Statics where
     _⇒_ : Typ → Typ → Typ
     Ν    : Typ
 
+  infixl 5 _⸴_
+
   data Ctx : Set where
     ∅   : Ctx
     _⸴_ : Ctx → Typ → Ctx

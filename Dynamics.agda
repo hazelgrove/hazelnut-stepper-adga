@@ -14,7 +14,7 @@ module Dynamics where
   data _—→_ : Exp → Exp → Set where
     T-β-· : ∀ {v e}
       → v value
-      → (ƛ e) · v —→ ([ v ↑ 0 / 0 ] e) ↓ 0
+      → (ƛ e) · v —→ ([ (v ↑ —) / ℕ.zero ] e) ↓ —
 
     T-β-φ : ∀ {f v}
       → v value
