@@ -25,7 +25,8 @@ module Core where
   infix  9 `_
 
   data Exp where
-    `_  : (x : Nat) → Exp
+    `_  : (i : Nat) → Exp
+    !_  : (x : Nat) → Exp
     ƛ_  : (e : Exp) → Exp
     _·_ : (l : Exp) → (r : Exp) → Exp
     #_  : (n : Nat) → Exp
@@ -36,7 +37,8 @@ module Core where
   data Pat where
     $e  : Pat
     $v  : Pat
-    `_  : (x : Nat) → Pat
+    `_  : (i : Nat) → Pat
+    !_  : (x : Nat) → Pat
     ƛ_  : (e : Exp) → Pat
     _·_ : (l : Pat) → (r : Pat) → Pat
     #_  : (n : Nat) → Pat

@@ -6,6 +6,63 @@ import Relation.Binary.PropositionalEquality as Eq
 open Eq using (refl; _≡_; cong; cong₂)
 
 module Subst where
+  [_↦_]ₑ_ : ℕ → ℕ → Exp → Exp
+  [_↤_]ₑ_ : ℕ → ℕ → Exp → Exp
+  [_↦_]ₚ_ : ℕ → ℕ → Pat → Pat
+  [_↤_]ₚ_ : ℕ → ℕ → Pat → Pat
+
+  [ k ↦ x ]ₑ (` i)     with i ≟ k
+  [ k ↦ x ]ₑ (` i)     | yes _ = (! x)
+  [ k ↦ x ]ₑ (` i)     | no  _ = (` i)
+  [ k ↦ x ]ₑ (! y)     = (! y)
+  [ k ↦ x ]ₑ (ƛ e)     = ƛ ([ (suc k) ↦ x ]ₑ e)
+  [ k ↦ x ]ₑ (eₗ · eᵣ) = ([ k ↦ x ]ₑ eₗ) · ([ k ↦ x ]ₑ eᵣ)
+  [ k ↦ x ]ₑ (# n)     = (# n)
+  [ k ↦ x ]ₑ (eₗ + eᵣ) = ([ k ↦ x ]ₑ eₗ) + ([ k ↦ x ]ₑ eᵣ)
+  [ k ↦ x ]ₑ (φ f e)   = φ ([ k ↦ x ]ₚ proj₁ f , proj₂ f) ([ k ↦ x ]ₑ e)
+  [ k ↦ x ]ₑ (δ r e)   = δ r ([ k ↦ x ]ₑ e)
+
+  [ k ↤ x ]ₑ (` i)     = (` i)
+  [ k ↤ x ]ₑ (! y)     with x ≟ y
+  [ k ↤ x ]ₑ (! y)     | yes _ = (` k)
+  [ k ↤ x ]ₑ (! y)     | no  _ = (! y)
+  [ k ↤ x ]ₑ (ƛ e)     = ƛ ([ (suc k) ↤ x ]ₑ e)
+  [ k ↤ x ]ₑ (eₗ · eᵣ) = ([ k ↤ x ]ₑ eₗ) · ([ k ↤ x ]ₑ eᵣ)
+  [ k ↤ x ]ₑ (# n)     = (# n)
+  [ k ↤ x ]ₑ (eₗ + eᵣ) = ([ k ↤ x ]ₑ eₗ) + ([ k ↤ x ]ₑ eᵣ)
+  [ k ↤ x ]ₑ (φ f e)   = φ ([ k ↤ x ]ₚ proj₁ f , proj₂ f) ([ k ↤ x ]ₑ e)
+  [ k ↤ x ]ₑ (δ r e)   = δ r ([ k ↤ x ]ₑ e)
+
+  [ k ↦ x ]ₚ $e        = $e
+  [ k ↦ x ]ₚ $v        = $v
+  [ k ↦ x ]ₚ (` i)     with i ≟ k
+  [ k ↦ x ]ₚ (` i)     | yes _ = (! x)
+  [ k ↦ x ]ₚ (` i)     | no  _ = (` i)
+  [ k ↦ x ]ₚ (! y)     = ! y
+  [ k ↦ x ]ₚ (ƛ e)     = ƛ ([ (suc k) ↦ x ]ₑ e)
+  [ k ↦ x ]ₚ (pₗ · pᵣ) = ([ k ↦ x ]ₚ pₗ) · ([ k ↦ x ]ₚ pᵣ)
+  [ k ↦ x ]ₚ (# n)     = # n
+  [ k ↦ x ]ₚ (pₗ + pᵣ) = ([ k ↦ x ]ₚ pₗ) + ([ k ↦ x ]ₚ pᵣ)
+
+  [ k ↤ x ]ₚ $e        = $e
+  [ k ↤ x ]ₚ $v        = $v
+  [ k ↤ x ]ₚ (` i)     = (` i)
+  [ k ↤ x ]ₚ (! y)     with x ≟ y
+  [ k ↤ x ]ₚ (! y)     | yes _ = (` k)
+  [ k ↤ x ]ₚ (! y)     | no  _ = (! y)
+  [ k ↤ x ]ₚ (ƛ e)     = ƛ ([ (suc k) ↤ x ]ₑ e)
+  [ k ↤ x ]ₚ (pₗ · pᵣ) = ([ k ↤ x ]ₚ pₗ) · ([ k ↤ x ]ₚ pᵣ)
+  [ k ↤ x ]ₚ (# n)     = # n
+  [ k ↤ x ]ₚ (pₗ + pᵣ) = ([ k ↤ x ]ₚ pₗ) + ([ k ↤ x ]ₚ pᵣ)
+
+  data LocallyClosedₑ : Exp → Set where
+    LC-` : ∀ {x}
+      → LocallyClosedₑ (! x)
+    LC-· : ∀ {e₁ e₂}
+      → LocallyClosedₑ (e₁ · e₂)
+    LC-ƛ : ∀ {e x}
+      → 
+
   ↑ₙ : (c : ℕ) → (d : ℕ) → ℕ → ℕ
   ↑ₙ zero    zero    x       = x
   ↑ₙ zero    (suc d) x       = suc (↑ₙ zero d x)
