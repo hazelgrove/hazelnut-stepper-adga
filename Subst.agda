@@ -1,11 +1,31 @@
 open import Core
-open import Data.Nat using (ℕ; _>_; _≟_; _<?_; zero; suc; pred)
+open import Data.Nat using (ℕ; _>_; _≟_; _<?_; zero; suc; pred; _≡ᵇ_)
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Relation.Nullary using (yes; no)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (refl; _≡_; cong; cong₂)
+open import Data.Bool using (Bool; not; _∧_; false)
 
 module Subst where
+  deadₑ : (y : ℕ) → (e : Exp) → Bool
+  deadₚ : (y : ℕ) → (p : Pat) → Bool
+
+  deadₑ y (` x) = not (x ≡ᵇ y)
+  deadₑ y (ƛ e) = deadₑ (suc y) e
+  deadₑ y (eₗ · eᵣ) = deadₑ y eₗ ∧ deadₑ y eᵣ
+  deadₑ y (# n)     = false
+  deadₑ y (eₗ + eᵣ) = deadₑ y eₗ ∧ deadₑ y eᵣ
+  deadₑ y (φ f e)   = deadₚ y (proj₁ f) ∧ deadₑ y e
+  deadₑ y (δ r e)   = deadₑ y e
+
+  deadₚ y $e = false
+  deadₚ y $v = false
+  deadₚ y (` x) = not (x ≡ᵇ y)
+  deadₚ y (ƛ e) = deadₑ (suc y) e
+  deadₚ y (pₗ · pᵣ) = deadₚ y pₗ ∧ deadₚ y pᵣ
+  deadₚ y (# n) = false
+  deadₚ y (pₗ + pᵣ) = deadₚ y pₗ ∧ deadₚ y pᵣ
+
   ↑ₙ : (c : ℕ) → (d : ℕ) → ℕ → ℕ
   ↑ₙ zero    zero    x       = x
   ↑ₙ zero    (suc d) x       = suc (↑ₙ zero d x)
