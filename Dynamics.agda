@@ -14,7 +14,7 @@ module Dynamics where
   data _—→_ : Exp → Exp → Set where
     T-β-· : ∀ {v e}
       → v value
-      → (ƛ e) · v —→ ([ (v ↑ —) / ℕ.zero ] e) ↓ —
+      → (ƛ e) · v —→ ↓ 0 1 ([ (↑ 0 1 v) / 0 ] e)
 
     T-β-φ : ∀ {f v}
       → v value
@@ -52,33 +52,33 @@ module Dynamics where
       → (vₗ · vᵣ) ⇒ ∘ ⟨ vₗ · vᵣ ⟩
 
     D-ξ-+-l : ∀ {eₗ eᵣ ℰ eₗ′}
-      → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
+      → (D : eₗ ⇒ ℰ ⟨ eₗ′ ⟩)
       → (eₗ + eᵣ) ⇒ (ℰ +ₗ eᵣ) ⟨ eₗ′ ⟩
 
     D-ξ-+-r : ∀ {vₗ eᵣ ℰ eᵣ′}
-      → vₗ value
-      → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
+      → (V : vₗ value)
+      → (D : eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩)
       → (vₗ + eᵣ) ⇒ (vₗ +ᵣ ℰ) ⟨ eᵣ′ ⟩
 
     D-β-+ : ∀ {vₗ vᵣ}
-      → vₗ value
-      → vᵣ value
+      → (Vₗ : vₗ value)
+      → (Vᵣ : vᵣ value)
       → (vₗ + vᵣ) ⇒ ∘ ⟨ vₗ + vᵣ ⟩
 
     D-ξ-φ : ∀ {f e ℰ e′}
-      → e ⇒ ℰ ⟨ e′ ⟩
+      → (D : e ⇒ ℰ ⟨ e′ ⟩)
       → (φ f e) ⇒ (φ f ℰ) ⟨ e′ ⟩
 
     D-β-φ : ∀ {f v}
-      → v value
+      → (V : v value)
       → (φ f v) ⇒ ∘ ⟨ φ f v ⟩
 
     D-ξ-δ : ∀ {r e ℰ e′}
-      → e ⇒ ℰ ⟨ e′ ⟩
+      → (D : e ⇒ ℰ ⟨ e′ ⟩)
       → (δ r e) ⇒ (δ r ℰ) ⟨ e′ ⟩
 
     D-β-δ : ∀ {r v}
-      → v value
+      → (V : v value)
       → (δ r v) ⇒ ∘ ⟨ δ r v ⟩
 
   data _⇐_⟨_⟩ : Exp → Ctx → Exp → Set where

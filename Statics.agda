@@ -1,7 +1,9 @@
 open import Core
 open import Dynamics renaming (Ctx to EvalCtx)
 open import Data.Product using (_,_)
-open import Data.Nat using (ℕ; zero; suc; _≤_; s≤s; _<_)
+open import Data.Nat using (ℕ; zero; suc; _≤_; s≤s; _<_; z≤n)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (refl; _≡_; cong; cong₂; subst; sym)
 
 module Statics where
   data Typ : Set where
@@ -18,9 +20,15 @@ module Statics where
   length ∅ = 0
   length (Γ ⸴ τ) = suc (length Γ)
 
-  insert : ∀ {Γ : Ctx} → {n : ℕ} → (p : n ≤ length Γ) → Typ → Ctx
-  insert {Γ} {zero} p τ = Γ ⸴ τ
-  insert {Γ ⸴ τ′} {suc n} (s≤s p) τ = (insert p τ) ⸴ τ′
+  insert : ∀ {Γ : Ctx} → {n : ℕ} → (∈ : n ≤ length Γ) → Ctx → Ctx
+  insert {Γ} {zero} z≤n ∅ = Γ
+  insert {Γ} {zero} z≤n (Γ′ ⸴ τ′) = (insert {Γ} z≤n Γ′) ⸴ τ′
+  insert {Γ ⸴ τ′} {suc n} (s≤s ∈) Γ′ = (insert ∈ Γ′) ⸴ τ′
+
+  insert-∅ : ∀ {Γ : Ctx} {n : ℕ} {∈ : n ≤ length Γ} → insert ∈ ∅ ≡ Γ
+  insert-∅ {∅} {∈ = z≤n} = refl
+  insert-∅ {Γ ⸴ τ} {∈ = z≤n} = refl
+  insert-∅ {Γ ⸴ τ} {∈ = s≤s ∈} = cong (_⸴ τ) insert-∅
 
   update : ∀ {Γ : Ctx} → {n : ℕ} → (p : n < length Γ) → Typ → Ctx
   update {Γ ⸴ τ′} {n = ℕ.zero} p τ = Γ ⸴ τ
@@ -119,8 +127,26 @@ module Statics where
     ⊢-·-r : ∀ {Γ eₗ εᵣ τₗ τᵣ}
       → Γ ⊢[ eₗ ]∶ (τᵣ ⇒ τₗ)
       → Γ ⊢⟨ εᵣ ⟩∶ τᵣ
-      → Γ ⊢⟨ eₗ ·ᵣ εᵣ ⟩∶ τₗ 
+      → Γ ⊢⟨ eₗ ·ᵣ εᵣ ⟩∶ τₗ
 
+    ⊢-+-l : ∀ {Γ εₗ eᵣ}
+      → Γ ⊢⟨ εₗ ⟩∶ Ν
+      → Γ ⊢[ eᵣ ]∶ Ν
+      → Γ ⊢⟨ εₗ +ₗ eᵣ ⟩∶ Ν
+
+    ⊢-+-r : ∀ {Γ eₗ εᵣ}
+      → Γ ⊢[ eₗ ]∶ Ν
+      → Γ ⊢⟨ εᵣ ⟩∶ Ν
+      → Γ ⊢⟨ eₗ +ᵣ εᵣ ⟩∶ Ν
+
+    ⊢-φ : ∀ {Γ p ag τₚ e τₑ}
+      → Γ ⊢< p >∶ τₚ
+      → Γ ⊢⟨ e ⟩∶ τₑ
+      → Γ ⊢⟨ φ (p , ag) e ⟩∶ τₑ
+
+    ⊢-δ : ∀ {Γ r e τ}
+      → Γ ⊢⟨ e ⟩∶ τ
+      → Γ ⊢⟨ δ r e ⟩∶ τ
 
   _⊢_∶_ : {T : Set} ⦃ TypableT : Typable T ⦄ → Ctx → T → Typ → Set
   _⊢_∶_ ⦃ TypableT ⦄ Γ t τ = Typable.synthesize TypableT Γ t τ

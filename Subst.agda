@@ -1,115 +1,152 @@
 open import Core
-import Relation.Binary.PropositionalEquality as Eq
-open Eq using (refl; _≡_)
 open import Data.Nat using (ℕ; _>_; _≟_; _<?_; zero; suc; pred)
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Relation.Nullary using (yes; no)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (refl; _≡_; cong; cong₂)
 
 module Subst where
-  ↑ₑ : Exp → ℕ → (d : ℕ) → ⦃ _ : d > 0 ⦄ → Exp
-  ↑ₚ : Pat → ℕ → (d : ℕ) → ⦃ _ : d > 0 ⦄ → Pat
+  ↑ₙ : (c : ℕ) → (d : ℕ) → ℕ → ℕ
+  ↑ₙ zero    zero    x       = x
+  ↑ₙ zero    (suc d) x       = suc (↑ₙ zero d x)
+  ↑ₙ (suc c) d       zero    = zero
+  ↑ₙ (suc c) d       (suc x) = suc (↑ₙ c d x)
 
-  ↑ₑ (` x)     c d with x <? c
-  ↑ₑ (` x)     c d | yes _ = ` x
-  ↑ₑ (` x)     c d | no  _ = ` (x Data.Nat.+ d)
-  ↑ₑ (ƛ e)     c d = ƛ ↑ₑ e (suc c) d
-  ↑ₑ (eₗ · eᵣ) c d = ↑ₑ eₗ c d · ↑ₑ eᵣ c d
-  ↑ₑ (# n)     c d = # n
-  ↑ₑ (eₗ + eᵣ) c d = (↑ₑ eₗ c d) + (↑ₑ eᵣ c d)
-  ↑ₑ (φ f e)   c d = φ record f { pat = ↑ₚ (Core.Filter.pat f) c d } (↑ₑ e c d)
-  ↑ₑ (δ r e)   c d = δ r (↑ₑ e c d)
+  ↑ₙ⁰ : ∀ {c n : ℕ} → ↑ₙ c 0 n ≡ n
+  ↑ₙ⁰ {zero} {n} = refl
+  ↑ₙ⁰ {suc c} {zero} = refl
+  ↑ₙ⁰ {suc c} {suc n} = cong suc (↑ₙ⁰ {c} {n})
 
-  ↑ₚ $e        c d = $e
-  ↑ₚ $v        c d = $v
-  ↑ₚ (` x)     c d with x <? c
-  ↑ₚ (` x)     c d | yes _ = ` x
-  ↑ₚ (` x)     c d | no  _ = ` (d Data.Nat.+ x)
-  ↑ₚ (ƛ e)     c d = ƛ ↑ₑ e (suc c) d
-  ↑ₚ (pₗ · pᵣ) c d = ↑ₚ pₗ c d · ↑ₚ pᵣ c d
-  ↑ₚ (# n)     c d = # n
-  ↑ₚ (pₗ + pᵣ) c d = ↑ₚ pₗ c d + ↑ₚ pᵣ c d
+  ↑ₙ-cascade : ∀ {c d n : ℕ} → ↑ₙ c 1 (↑ₙ c d n) ≡ ↑ₙ c (suc d) n
+  ↑ₙ-cascade {zero}  {d} {n}     = refl
+  ↑ₙ-cascade {suc c} {d} {zero}  = refl
+  ↑ₙ-cascade {suc c} {d} {suc n} = cong suc (↑ₙ-cascade {c} {d} {n})
 
-  ↓ₑ : Exp → ℕ → ℕ → Exp
-  ↓ₚ : Pat → ℕ → ℕ → Pat
+  ↑ₑ : (c : ℕ) → (d : ℕ) → Exp → Exp
+  ↑ₚ : (c : ℕ) → (d : ℕ) → Pat → Pat
 
-  ↓ₑ (` x)     c d with x <? c
-  ↓ₑ (` x)     c d | yes _ = ` x
-  ↓ₑ (` x)     c d | no  _ = ` (x Data.Nat.∸ d)
-  ↓ₑ (ƛ e)     c d = ƛ ↓ₑ e (suc c) d
-  ↓ₑ (eₗ · eᵣ) c d = ↓ₑ eₗ c d · ↓ₑ eᵣ c d
-  ↓ₑ (# n)     c d = # n
-  ↓ₑ (eₗ + eᵣ) c d = (↓ₑ eₗ c d) + (↓ₑ eᵣ c d)
-  ↓ₑ (φ f e)   c d = φ record f { pat = ↓ₚ (Core.Filter.pat f) c d } (↓ₑ e c d)
-  ↓ₑ (δ r e)   c d = δ r (↓ₑ e c d)
+  ↑ₑ-cascade : ∀ {c d : ℕ} {e : Exp} → ↑ₑ c 1 (↑ₑ c d e) ≡ ↑ₑ c (suc d) e
+  ↑ₚ-cascade : ∀ {c d : ℕ} {p : Pat} → ↑ₚ c 1 (↑ₚ c d p) ≡ ↑ₚ c (suc d) p
 
-  ↓ₚ $e        c d = $e
-  ↓ₚ $v        c d = $v
-  ↓ₚ (` x)     c d with x <? c
-  ↓ₚ (` x)     c d | yes _ = ` x
-  ↓ₚ (` x)     c d | no  _ = ` (x Data.Nat.∸ d)
-  ↓ₚ (ƛ e)     c d = ƛ ↓ₑ e (suc c) d
-  ↓ₚ (pₗ · pᵣ) c d = ↓ₚ pₗ c d · ↓ₚ pᵣ c d
-  ↓ₚ (# n)     c d = # n
-  ↓ₚ (pₗ + pᵣ) c d = ↓ₚ pₗ c d + ↓ₚ pᵣ c d
+  ↑ₑ c d (` x)     = ` (↑ₙ c d x)
+  ↑ₑ c d (ƛ e)     = ƛ ↑ₑ (suc c) d e
+  ↑ₑ c d (eₗ · eᵣ) = ↑ₑ c d eₗ · ↑ₑ c d eᵣ
+  ↑ₑ c d (# n)     = # n
+  ↑ₑ c d (eₗ + eᵣ) = ↑ₑ c d eₗ + ↑ₑ c d eᵣ
+  ↑ₑ c d (φ f e)   = φ (↑ₚ c d (proj₁ f) , (proj₂ f)) (↑ₑ c d e)
+  ↑ₑ c d (δ r e)   = δ r (↑ₑ c d e)
 
-  patternize : Core.Exp → Core.Pat
-  patternize (` x) = ` x
-  patternize (ƛ e) = ƛ e
+  ↑ₑ-cascade {c} {d} {` x}     = cong `_ (↑ₙ-cascade {c} {d} {x})
+  ↑ₑ-cascade {c} {d} {ƛ e}     = cong ƛ_ ↑ₑ-cascade
+  ↑ₑ-cascade {c} {d} {eₗ · eᵣ} = cong₂ _·_ ↑ₑ-cascade ↑ₑ-cascade
+  ↑ₑ-cascade {c} {d} {# n}     = refl
+  ↑ₑ-cascade {c} {d} {eₗ + eᵣ} = cong₂ _+_ ↑ₑ-cascade ↑ₑ-cascade
+  ↑ₑ-cascade {c} {d} {φ f e}   = cong₂ (λ p → φ (p , proj₂ f)) ↑ₚ-cascade ↑ₑ-cascade
+  ↑ₑ-cascade {c} {d} {δ r e}   = cong (δ r) ↑ₑ-cascade
+
+  ↑ₚ c d $e        = $e
+  ↑ₚ c d $v        = $v
+  ↑ₚ c d (` x)     = ` (↑ₙ c d x)
+  ↑ₚ c d (ƛ e)     = ƛ ↑ₑ (suc c) d e
+  ↑ₚ c d (pₗ · pᵣ) = ↑ₚ c d pₗ · ↑ₚ c d pᵣ
+  ↑ₚ c d (# n)     = # n
+  ↑ₚ c d (pₗ + pᵣ) = ↑ₚ c d pₗ + ↑ₚ c d pᵣ
+
+  ↑ₚ-cascade {c} {d} {$e} = refl
+  ↑ₚ-cascade {c} {d} {$v} = refl
+  ↑ₚ-cascade {c} {d} {` x} = cong `_ (↑ₙ-cascade {c} {d} {x})
+  ↑ₚ-cascade {c} {d} {ƛ e} = cong ƛ_ ↑ₑ-cascade
+  ↑ₚ-cascade {c} {d} {p · p₁} = cong₂ _·_ ↑ₚ-cascade ↑ₚ-cascade
+  ↑ₚ-cascade {c} {d} {# n} = refl
+  ↑ₚ-cascade {c} {d} {p + p₁} = cong₂ _+_ ↑ₚ-cascade ↑ₚ-cascade
+
+  ↓ₑ : (c : ℕ) → (d : ℕ) → Exp → Exp
+  ↓ₚ : (c : ℕ) → (d : ℕ) → Pat → Pat
+
+  ↓ₑ c d (` x)     with x <? c
+  ↓ₑ c d (` x)     | yes _ = ` x
+  ↓ₑ c d (` x)     | no  _ = ` (x Data.Nat.∸ d)
+  ↓ₑ c d (ƛ e)     = ƛ ↓ₑ (suc c) d e
+  ↓ₑ c d (eₗ · eᵣ) = ↓ₑ c d eₗ · ↓ₑ c d eᵣ
+  ↓ₑ c d (# n)     = # n
+  ↓ₑ c d (eₗ + eᵣ) = (↓ₑ c d eₗ) + (↓ₑ c d eᵣ)
+  ↓ₑ c d (φ f e)   = φ (↓ₚ c d (proj₁ f) , proj₂ f) (↓ₑ c d e)
+  ↓ₑ c d (δ r e)   = δ r (↓ₑ c d e)
+
+  ↓ₚ c d $e        = $e
+  ↓ₚ c d $v        = $v
+  ↓ₚ c d (` x)     with x <? c
+  ↓ₚ c d (` x)     | yes _ = ` x
+  ↓ₚ c d (` x)     | no  _ = ` (x Data.Nat.∸ d)
+  ↓ₚ c d (ƛ e)     = ƛ ↓ₑ (suc c) d e
+  ↓ₚ c d (pₗ · pᵣ) = ↓ₚ c d pₗ · ↓ₚ c d pᵣ
+  ↓ₚ c d (# n)     = # n
+  ↓ₚ c d (pₗ + pᵣ) = ↓ₚ c d pₗ + ↓ₚ c d pᵣ
+
+  patternize : Exp → Pat
+  patternize (` x)   = ` x
+  patternize (ƛ e)   = ƛ e
   patternize (l · r) = patternize l · patternize r
-  patternize (# n) = # n
+  patternize (# n)   = # n
   patternize (l + r) = patternize l + patternize r
   patternize (φ f e) = patternize e
   patternize (δ r e) = patternize e
 
-  instance
-    _ : 1 > 0
-    _ = Data.Nat.s≤s Data.Nat.z≤n
+  [_/_]ₑ_ : Exp → ℕ → Exp → Exp
+  [_/_]ₚ_ : Exp → ℕ → Pat → Pat
 
-  [_/_]ₑ_ : Core.Exp → ℕ → Core.Exp → Core.Exp
-  [_/_]ₚ_ : Core.Exp → ℕ → Core.Pat → Core.Pat
-
-  [_/_]ₑ_ v y (` x) with x ≟ y
-  [_/_]ₑ_ v y (` x) | yes refl = v
-  [_/_]ₑ_ v y (` x) | no  x≢y  = ` x
-  [_/_]ₑ_ v y (ƛ e) = ƛ ([_/_]ₑ_ (↑ₑ v 0 1) (suc y) e)
+  [_/_]ₑ_ v y (` x)   with x ≟ y
+  [_/_]ₑ_ v y (` x)   | yes refl = v
+  [_/_]ₑ_ v y (` x)   | no  x≢y  = ` x
+  [_/_]ₑ_ v y (ƛ e)   = ƛ ([_/_]ₑ_ (↑ₑ 0 1 v) (suc y) e)
   [_/_]ₑ_ v y (l · r) = ([_/_]ₑ_ v y l) · ([_/_]ₑ_ v y r)
-  [_/_]ₑ_ v y (# n) = # n
+  [_/_]ₑ_ v y (# n)   = # n
   [_/_]ₑ_ v y (l + r) = ([_/_]ₑ_ v y l) + ([_/_]ₑ_ v y r)
-  [_/_]ₑ_ v y (φ f e) = φ record f { pat = [_/_]ₚ_ v y (Core.Filter.pat f) } ([_/_]ₑ_ v y e)
+  [_/_]ₑ_ v y (φ f e) = φ ([_/_]ₚ_ v y (proj₁ f) , proj₂ f) ([_/_]ₑ_ v y e)
   [_/_]ₑ_ v y (δ r e) = δ r ([_/_]ₑ_ v y e)
 
-  [_/_]ₚ_ v y $e = $e
-  [_/_]ₚ_ v y $v = $v
-  [_/_]ₚ_ v y (` x) with x ≟ y
-  [_/_]ₚ_ v y (` x) | yes refl = patternize v
-  [_/_]ₚ_ v y (` x) | no  x≢y  = ` x
-  [_/_]ₚ_ v y (ƛ e) = ƛ ([_/_]ₑ_ (↑ₑ v 0 1) (suc y) e)
+  [_/_]ₚ_ v y $e      = $e
+  [_/_]ₚ_ v y $v      = $v
+  [_/_]ₚ_ v y (` x)   with x ≟ y
+  [_/_]ₚ_ v y (` x)   | yes refl = patternize v
+  [_/_]ₚ_ v y (` x)   | no  x≢y  = ` x
+  [_/_]ₚ_ v y (ƛ e)   = ƛ ([_/_]ₑ_ (↑ₑ 0 1 v) (suc y) e)
   [_/_]ₚ_ v y (l · r) = ([_/_]ₚ_ v y l) · ([_/_]ₚ_ v y r)
-  [_/_]ₚ_ v y (# n) = # n
+  [_/_]ₚ_ v y (# n)   = # n
   [_/_]ₚ_ v y (l + r) = ([_/_]ₚ_ v y l) + ([_/_]ₚ_ v y r)
 
-  record Term {T : Set} : Set₁ where
+  record Term (T : Set) : Set₁ where
     field
-      ↑ : T → ℕ → (d : ℕ) → ⦃ _ : d > 0 ⦄ → T
-      ↓ : T → ℕ → (d : ℕ) → T
-      subst : Core.Exp → ℕ → T → T
+      ↑ : ℕ → (d : ℕ) → T → T
+      ↓ : ℕ → (d : ℕ) → T → T
+      subst : Exp → ℕ → T → T
+
+  ↑ : {T : Set} ⦃ TermT : Term T ⦄ → (c : ℕ) → (d : ℕ) → T → T
+  ↑ ⦃ TermT ⦄ = Term.↑ TermT
+
+  Cascade : ∀ (T : Set) ⦃ TermT : Term T ⦄ → Set
+  Cascade T = ∀ {c d : ℕ} {t : T} → ↑ c 1 (↑ c d t) ≡ ↑ c (suc d) t
 
   instance
-    TermExp : Term {Core.Exp}
+    TermExp : Term (Core.Exp)
     TermExp =
       record
         { ↑ = ↑ₑ ; ↓ = ↓ₑ ; subst = [_/_]ₑ_ }
 
-    TermPat : Term {Core.Pat}
+    TermPat : Term (Core.Pat)
     TermPat =
       record
         { ↑ = ↑ₚ ; ↓ = ↓ₚ ; subst = [_/_]ₚ_ }
 
-  _↑_ : {T : Set} ⦃ TermT : Term {T} ⦄ → (t : T) → (c : ℕ) → (d : ℕ) → ⦃ _ : d > 0 ⦄ → T
-  _↑_ ⦃ TermT ⦄ = Term.↑ TermT
+  instance
+    CascadeExp : Cascade Exp
+    CascadeExp = ↑ₑ-cascade
 
-  _↓_ : {T : Set} ⦃ TermT : Term {T} ⦄ → (t : T) → (c : ℕ) → (d : ℕ) → T
-  _↓_ ⦃ TermT ⦄ = Term.↓ TermT
+  ↑-cascade : ∀ {T : Set} ⦃ TermT : Term T ⦄ ⦃ CascadeT : Cascade T ⦄ {c d : ℕ} {e : T} → ↑ c 1 (↑ c d e) ≡ ↑ c (suc d) e
+  ↑-cascade ⦃ CascadeT = CascadeT ⦄ = CascadeT
 
-  [_/_]_ : {T : Set} ⦃ TermT : Term {T} ⦄ → (v : Core.Exp) → (n : ℕ) → T → T
+  ↓ : {T : Set} ⦃ TermT : Term T ⦄ → (c : ℕ) → (d : ℕ) → T → T
+  ↓ ⦃ TermT ⦄ = Term.↓ TermT
+
+  [_/_]_ : {T : Set} ⦃ TermT : Term T ⦄ → (v : Core.Exp) → (n : ℕ) → T → T
   [_/_]_ ⦃ TermT ⦄ = Term.subst TermT
