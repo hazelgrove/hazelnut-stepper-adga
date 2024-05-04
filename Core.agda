@@ -1,4 +1,5 @@
 open import Nat
+open import Data.String using (String)
 open import Data.Product using (_×_)
 
 module Core where
@@ -13,6 +14,9 @@ module Core where
   data Exp : Set
   data Pat : Set
 
+  Var : Set
+  Var = String
+
   Filter  : Set
   Filter  = Pat × Act × Gas
 
@@ -25,7 +29,8 @@ module Core where
   infix  9 `_
 
   data Exp where
-    `_  : (x : Nat) → Exp
+    `_  : (i : Nat) → Exp
+    -- !_  : (x : Var)  → Exp
     ƛ_  : (e : Exp) → Exp
     _·_ : (l : Exp) → (r : Exp) → Exp
     #_  : (n : Nat) → Exp
@@ -36,7 +41,8 @@ module Core where
   data Pat where
     $e  : Pat
     $v  : Pat
-    `_  : (x : Nat) → Pat
+    `_  : (i : Nat) → Pat
+    -- !_  : (x : Var) → Pat
     ƛ_  : (e : Exp) → Pat
     _·_ : (l : Pat) → (r : Pat) → Pat
     #_  : (n : Nat) → Pat
@@ -51,5 +57,6 @@ module Core where
   data _filter : Exp → Set where
     F-φ : ∀ {f e}
       → φ f e filter
+
     F-δ : ∀ {r e}
       → δ r e filter

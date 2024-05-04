@@ -1,6 +1,6 @@
 open import Core
 open import Dynamics renaming (Ctx to EvalCtx)
-open import Data.Product using (_,_)
+open import Data.Product using (_,_; _×_)
 open import Data.Nat using (ℕ; zero; suc; _≤_; s≤s; _<_; z≤n)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (refl; _≡_; cong; cong₂; subst; sym)
@@ -14,25 +14,30 @@ module Statics where
 
   data Ctx : Set where
     ∅   : Ctx
-    _⸴_ : Ctx → Typ → Ctx
+    _⸴_ : (Γ : Ctx) → (τ : Typ) → Ctx
 
   length : Ctx → ℕ
   length ∅ = 0
   length (Γ ⸴ τ) = suc (length Γ)
 
-  insert : ∀ {Γ : Ctx} → {n : ℕ} → (∈ : n ≤ length Γ) → Ctx → Ctx
-  insert {Γ} {zero} z≤n ∅ = Γ
-  insert {Γ} {zero} z≤n (Γ′ ⸴ τ′) = (insert {Γ} z≤n Γ′) ⸴ τ′
-  insert {Γ ⸴ τ′} {suc n} (s≤s ∈) Γ′ = (insert ∈ Γ′) ⸴ τ′
+  insert : ∀ (Γ : Ctx) → (n : ℕ) → Typ → Ctx
+  insert Γ zero τ₀ = Γ ⸴ τ₀
+  insert ∅ (suc n) τ₀ = ∅
+  insert (Γ ⸴ τ) (suc n) τ₀ = insert Γ n τ₀ ⸴ τ
 
-  insert-∅ : ∀ {Γ : Ctx} {n : ℕ} {∈ : n ≤ length Γ} → insert ∈ ∅ ≡ Γ
-  insert-∅ {∅} {∈ = z≤n} = refl
-  insert-∅ {Γ ⸴ τ} {∈ = z≤n} = refl
-  insert-∅ {Γ ⸴ τ} {∈ = s≤s ∈} = cong (_⸴ τ) insert-∅
+  update : ∀ (Γ : Ctx) → (n : ℕ) → Typ → Ctx
+  update ∅ zero τ = ∅
+  update (Γ ⸴ τ) zero τ₀ = Γ ⸴ τ₀
+  update ∅ (suc n) τ = ∅
+  update (Γ ⸴ τ) (suc n) τ₀ = update Γ n τ₀ ⸴ τ
 
-  update : ∀ {Γ : Ctx} → {n : ℕ} → (p : n < length Γ) → Typ → Ctx
-  update {Γ ⸴ τ′} {n = ℕ.zero} p τ = Γ ⸴ τ
-  update {Γ ⸴ τ′} {n = ℕ.suc n} (s≤s p) τ = (update p τ) ⸴ τ′
+  delete : ∀ (Γ : Ctx) → (n : ℕ) → Ctx
+  delete ∅       zero    = ∅
+  delete ∅       (suc n) = ∅
+  delete (Γ ⸴ τ) zero    = Γ
+  delete (Γ ⸴ τ) (suc n) = delete Γ n ⸴ τ
+  -- delete (Γ ⸴ τ) zero = Γ
+  -- delete (Γ ⸴ τ) (suc n) = delete Γ n
 
   infix 4 _∋_∶_
 
@@ -66,13 +71,13 @@ module Statics where
       → Γ ⊢[ ƛ e ]∶ (τₓ ⇒ τₑ)
 
     ⊢-· : ∀ {Γ e₁ e₂ τ₁ τ₂}
-      → Γ ⊢[ e₁ ]∶ (τ₂ ⇒ τ₁)
-      → Γ ⊢[ e₂ ]∶ τ₂
+      → (⊢ₗ : Γ ⊢[ e₁ ]∶ (τ₂ ⇒ τ₁))
+      → (⊢ᵣ : Γ ⊢[ e₂ ]∶ τ₂)
       → Γ ⊢[ (e₁ · e₂) ]∶ τ₁
 
     ⊢-+ : ∀ {Γ e₁ e₂}
-      → Γ ⊢[ e₁ ]∶ Ν
-      → Γ ⊢[ e₂ ]∶ Ν
+      → (⊢ₗ : Γ ⊢[ e₁ ]∶ Ν)
+      → (⊢ᵣ : Γ ⊢[ e₂ ]∶ Ν)
       → Γ ⊢[ (e₁ + e₂) ]∶ Ν
 
     ⊢-# : ∀ {Γ n}

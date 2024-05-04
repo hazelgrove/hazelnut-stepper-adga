@@ -1,31 +1,15 @@
 open import Core
-open import Data.Nat using (ℕ; _>_; _≟_; _<?_; zero; suc; pred; _≡ᵇ_)
+open import Data.Nat using (ℕ; _>_; _≟_; _<?_; zero; suc; pred; _≡ᵇ_; z≤n; s≤s; _≤_; _<_)
+open import Data.String using (String)
+open import Data.List using (List; []; _∷_; _++_)
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Relation.Nullary using (yes; no)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (refl; _≡_; cong; cong₂)
 open import Data.Bool using (Bool; not; _∧_; false)
+open import Data.Fin using (Fin)
 
 module Subst where
-  deadₑ : (y : ℕ) → (e : Exp) → Bool
-  deadₚ : (y : ℕ) → (p : Pat) → Bool
-
-  deadₑ y (` x) = not (x ≡ᵇ y)
-  deadₑ y (ƛ e) = deadₑ (suc y) e
-  deadₑ y (eₗ · eᵣ) = deadₑ y eₗ ∧ deadₑ y eᵣ
-  deadₑ y (# n)     = false
-  deadₑ y (eₗ + eᵣ) = deadₑ y eₗ ∧ deadₑ y eᵣ
-  deadₑ y (φ f e)   = deadₚ y (proj₁ f) ∧ deadₑ y e
-  deadₑ y (δ r e)   = deadₑ y e
-
-  deadₚ y $e = false
-  deadₚ y $v = false
-  deadₚ y (` x) = not (x ≡ᵇ y)
-  deadₚ y (ƛ e) = deadₑ (suc y) e
-  deadₚ y (pₗ · pᵣ) = deadₚ y pₗ ∧ deadₚ y pᵣ
-  deadₚ y (# n) = false
-  deadₚ y (pₗ + pᵣ) = deadₚ y pₗ ∧ deadₚ y pᵣ
-
   ↑ₙ : (c : ℕ) → (d : ℕ) → ℕ → ℕ
   ↑ₙ zero    zero    x       = x
   ↑ₙ zero    (suc d) x       = suc (↑ₙ zero d x)
@@ -33,8 +17,8 @@ module Subst where
   ↑ₙ (suc c) d       (suc x) = suc (↑ₙ c d x)
 
   ↑ₙ⁰ : ∀ {c n : ℕ} → ↑ₙ c 0 n ≡ n
-  ↑ₙ⁰ {zero} {n} = refl
-  ↑ₙ⁰ {suc c} {zero} = refl
+  ↑ₙ⁰ {zero}  {n}     = refl
+  ↑ₙ⁰ {suc c} {zero}  = refl
   ↑ₙ⁰ {suc c} {suc n} = cong suc (↑ₙ⁰ {c} {n})
 
   ↑ₙ-cascade : ∀ {c d n : ℕ} → ↑ₙ c 1 (↑ₙ c d n) ≡ ↑ₙ c (suc d) n
@@ -80,12 +64,20 @@ module Subst where
   ↑ₚ-cascade {c} {d} {# n} = refl
   ↑ₚ-cascade {c} {d} {p + p₁} = cong₂ _+_ ↑ₚ-cascade ↑ₚ-cascade
 
-  ↓ₑ : (c : ℕ) → (d : ℕ) → Exp → Exp
-  ↓ₚ : (c : ℕ) → (d : ℕ) → Pat → Pat
+  ↓ₙ : (c : ℕ) → (d : ℕ) → (x : ℕ) → ℕ
+  ↓ₙ zero zero zero = zero
+  ↓ₙ zero (suc d) zero = zero
+  ↓ₙ zero zero (suc x) = suc x
+  ↓ₙ zero (suc d) (suc x) = ↓ₙ zero d x
+  ↓ₙ (suc c) zero zero = zero
+  ↓ₙ (suc c) (suc d) zero = zero
+  ↓ₙ (suc c) zero (suc x) = suc x
+  ↓ₙ (suc c) (suc d) (suc x) = ↓ₙ c d x
 
-  ↓ₑ c d (` x)     with x <? c
-  ↓ₑ c d (` x)     | yes _ = ` x
-  ↓ₑ c d (` x)     | no  _ = ` (x Data.Nat.∸ d)
+  ↓ₑ : (c : ℕ) → (d : ℕ) → (e : Exp) → Exp
+  ↓ₚ : (c : ℕ) → (d : ℕ) → (p : Pat) → Pat
+
+  ↓ₑ c d (` x)     = ` (↓ₙ c x d)
   ↓ₑ c d (ƛ e)     = ƛ ↓ₑ (suc c) d e
   ↓ₑ c d (eₗ · eᵣ) = ↓ₑ c d eₗ · ↓ₑ c d eᵣ
   ↓ₑ c d (# n)     = # n
@@ -104,7 +96,8 @@ module Subst where
   ↓ₚ c d (pₗ + pᵣ) = ↓ₚ c d pₗ + ↓ₚ c d pᵣ
 
   patternize : Exp → Pat
-  patternize (` x)   = ` x
+  patternize (` i)   = ` i
+  -- patternize (! x)   = ! x
   patternize (ƛ e)   = ƛ e
   patternize (l · r) = patternize l · patternize r
   patternize (# n)   = # n
@@ -112,9 +105,96 @@ module Subst where
   patternize (φ f e) = patternize e
   patternize (δ r e) = patternize e
 
+  -- [_↦_]ₑ_ : ℕ → Var → Exp → Exp
+  -- [_↦_]ₚ_ : ℕ → Var → Pat → Pat
+
+  -- [ k ↦ x ]ₑ (` i)     with i ≟ k
+  -- [ k ↦ x ]ₑ (` i)     | yes _ = ! x
+  -- [ k ↦ x ]ₑ (` i)     | no  _ = ` i
+  -- [ k ↦ x ]ₑ (! y)     = ! y
+  -- [ k ↦ x ]ₑ (ƛ e)     = ƛ ([ (suc k) ↦ x ]ₑ e)
+  -- [ k ↦ x ]ₑ (eₗ · eᵣ) = ([ k ↦ x ]ₑ eₗ) · ([ k ↦ x ]ₑ eᵣ)
+  -- [ k ↦ x ]ₑ (# n)     = # n
+  -- [ k ↦ x ]ₑ (eₗ + eᵣ) = ([ k ↦ x ]ₑ eₗ) + ([ k ↦ x ]ₑ eᵣ)
+  -- [ k ↦ x ]ₑ φ f e     = φ (([ k ↦ x ]ₚ proj₁ f) , proj₂ f) ([ k ↦ x ]ₑ e)
+  -- [ k ↦ x ]ₑ δ r e     = [ k ↦ x ]ₑ e
+
+  -- [ k ↦ x ]ₚ $e        = $e
+  -- [ k ↦ x ]ₚ $v        = $v
+  -- [ k ↦ x ]ₚ (` i)     with i ≟ k
+  -- [ k ↦ x ]ₚ (` i)     | yes _ = ! x
+  -- [ k ↦ x ]ₚ (` i)     | no  _ = ` i
+  -- [ k ↦ x ]ₚ (! y)     = ! y
+  -- [ k ↦ x ]ₚ (ƛ p)     = ƛ ([ (suc k) ↦ x ]ₑ p)
+  -- [ k ↦ x ]ₚ (pₗ · pᵣ) = ([ k ↦ x ]ₚ pₗ) · ([ k ↦ x ]ₚ pᵣ)
+  -- [ k ↦ x ]ₚ (# n)     = # n
+  -- [ k ↦ x ]ₚ (pₗ + pᵣ) = ([ k ↦ x ]ₚ pₗ) + ([ k ↦ x ]ₚ pᵣ)
+
+  -- [_↤_]ₑ_ : ℕ → Var → Exp → Exp
+  -- [_↤_]ₚ_ : ℕ → Var → Pat → Pat
+
+  -- [ k ↤ x ]ₑ (` i)     = ` i
+  -- [ k ↤ x ]ₑ (! y)     with (x Data.String.≟ y)
+  -- [ k ↤ x ]ₑ (! y)     | yes _ = ` k
+  -- [ k ↤ x ]ₑ (! y)     | no  _ = ! y
+  -- [ k ↤ x ]ₑ (ƛ e)     = ƛ ([ (suc k) ↤ x ]ₑ e)
+  -- [ k ↤ x ]ₑ (eₗ · eᵣ) = ([ k ↤ x ]ₑ eₗ) · ([ k ↤ x ]ₑ eᵣ)
+  -- [ k ↤ x ]ₑ (# n)     = # n
+  -- [ k ↤ x ]ₑ (eₗ + eᵣ) = ([ k ↤ x ]ₑ eₗ) + ([ k ↤ x ]ₑ eᵣ)
+  -- [ k ↤ x ]ₑ φ f e     = φ (([ k ↤ x ]ₚ proj₁ f) , proj₂ f) ([ k ↤ x ]ₑ e)
+  -- [ k ↤ x ]ₑ δ r e     = [ k ↤ x ]ₑ e
+
+  -- [ k ↤ x ]ₚ $e        = $e
+  -- [ k ↤ x ]ₚ $v        = $v
+  -- [ k ↤ x ]ₚ (` i)     = ` i
+  -- [ k ↤ x ]ₚ (! y)     with (x Data.String.≟ y)
+  -- [ k ↤ x ]ₚ (! y)     | yes _ = ` k
+  -- [ k ↤ x ]ₚ (! y)     | no  _ = ! y
+  -- [ k ↤ x ]ₚ (ƛ p)     = ƛ ([ (suc k) ↤ x ]ₑ p)
+  -- [ k ↤ x ]ₚ (pₗ · pᵣ) = ([ k ↤ x ]ₚ pₗ) · ([ k ↤ x ]ₚ pᵣ)
+  -- [ k ↤ x ]ₚ (# n)     = # n
+  -- [ k ↤ x ]ₚ (pₗ + pᵣ) = ([ k ↤ x ]ₚ pₗ) + ([ k ↤ x ]ₚ pᵣ)
+
+  -- data _closed-at_ : Exp → ℕ → Set where
+  --   LC-` : ∀ {i k}
+  --     → i < k
+  --     → (` i) closed-at k
+  --   LC-! : ∀ {x k}
+  --     → (! x) closed-at k
+  --   LC-· : ∀ {eₗ eᵣ k}
+  --     → eₗ closed-at k
+  --     → eᵣ closed-at k
+  --     → (eₗ · eᵣ) closed-at k
+  --   LC-ƛ : ∀ {k e}
+  --     → e closed-at k
+  --     → (ƛ e) closed-at (suc k)
+
+  -- _closed : Exp → Set
+  -- e closed = e closed-at 0
+
+  -- fvₑ : Exp → List Var
+  -- fvₚ : Pat → List Var
+  -- fvₑ (` i)     = []
+  -- fvₑ (! x)     = x ∷ []
+  -- fvₑ (ƛ e)     = fvₑ e
+  -- fvₑ (eₗ · eᵣ) = (fvₑ eₗ) ++ (fvₑ eᵣ)
+  -- fvₑ (# n)     = []
+  -- fvₑ (eₗ + eᵣ) = (fvₑ eₗ) ++ (fvₑ eᵣ)
+  -- fvₑ (φ f e)   = fvₚ (proj₁ f) ++ (fvₑ e)
+  -- fvₑ (δ r e)   = fvₑ e
+
+  -- fvₚ $e        = []
+  -- fvₚ $v        = []
+  -- fvₚ (` i)     = []
+  -- fvₚ (! x)     = x ∷ []
+  -- fvₚ (ƛ e)     = fvₑ e
+  -- fvₚ (eₗ · eᵣ) = (fvₚ eₗ) ++ (fvₚ eᵣ)
+  -- fvₚ (# n)     = []
+  -- fvₚ (eₗ + eᵣ) = (fvₚ eₗ) ++ (fvₚ eᵣ)
+
   [_/_]ₑ_ : Exp → ℕ → Exp → Exp
   [_/_]ₚ_ : Exp → ℕ → Pat → Pat
-
+ 
   [_/_]ₑ_ v y (` x)   with x ≟ y
   [_/_]ₑ_ v y (` x)   | yes refl = v
   [_/_]ₑ_ v y (` x)   | no  x≢y  = ` x

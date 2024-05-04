@@ -2,19 +2,48 @@ open import Core
 open import Subst
 open import Match
 open import Data.Integer using (+_)
-open import Data.Nat using (ℕ; _≤?_; _>_; _≤_)
+open import Data.Nat using (ℕ; _≤?_; _>_; _≤_; zero; suc; <-cmp; pred; s≤s)
 open import Data.Nat.Properties using (≰⇒>)
-open import Data.Sum using (_⊎_)
+open import Relation.Binary using (tri<; tri>; tri≈)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Function using (id)
 open import Data.Product using (_×_; _,_)
 open import Relation.Nullary using (¬_; yes; no)
 
 module Dynamics where
+  applyₙ : (i : ℕ) → (x : ℕ) → (v : Exp) → Exp
+  applyₙ i x v with <-cmp i x
+  applyₙ i x v | tri< a ¬b ¬c = ` i
+  applyₙ i x v | tri≈ ¬a b ¬c = v
+  applyₙ (suc i) x v | tri> ¬a ¬b (s≤s >) = ` i
+
+  applyₑ : Exp → ℕ → Exp → Exp
+  applyₚ : Pat → ℕ → Exp → Pat
+
+  applyₑ (` i) x v = applyₙ i x v
+  applyₑ (ƛ e) x v = ƛ (applyₑ e (suc x) (↑ₑ 0 1 v))
+  applyₑ (eₗ · eᵣ) x v = applyₑ eₗ x v · applyₑ eᵣ x v
+  applyₑ (# n) x v = # n
+  applyₑ (eₗ + eᵣ) x v = applyₑ eₗ x v + applyₑ eᵣ x v
+  applyₑ (φ (p , ag) e) x v = φ ((applyₚ p x v) , ag) (applyₑ e x v)
+  applyₑ (δ r e) x v = δ r (applyₑ e x v)
+
+  applyₚ $e x v = $e
+  applyₚ $v x v = $v
+  applyₚ (` i) x v = patternize (applyₙ i x v)
+  applyₚ (ƛ e) x v = patternize (applyₑ (ƛ e) x v)
+  applyₚ (pₗ · pᵣ) x v = applyₚ pₗ x v · applyₚ pᵣ x v
+  applyₚ (# n) x v = # n
+  applyₚ (pₗ + pᵣ) x v = applyₚ pₗ x v + applyₚ pᵣ x v
+
   infix 0 _—→_
 
   data _—→_ : Exp → Exp → Set where
     T-β-· : ∀ {v e}
       → v value
-      → (ƛ e) · v —→ ↓ 0 1 ([ (↑ 0 1 v) / 0 ] e)
+      → (ƛ e) · v —→ applyₑ e 0 v
 
     T-β-φ : ∀ {f v}
       → v value
@@ -38,17 +67,17 @@ module Dynamics where
       → (` x) ⇒ ∘ ⟨ (` x) ⟩
 
     D-ξ-·-l : ∀ {eₗ eᵣ ℰ eₗ′}
-      → eₗ ⇒ ℰ ⟨ eₗ′ ⟩
+      → (D : eₗ ⇒ ℰ ⟨ eₗ′ ⟩)
       → (eₗ · eᵣ) ⇒ (ℰ ·ₗ eᵣ) ⟨ eₗ′ ⟩
 
     D-ξ-·-r : ∀ {vₗ eᵣ ℰ eᵣ′}
-      → vₗ value
-      → eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩
+      → (V : vₗ value)
+      → (D : eᵣ ⇒ ℰ ⟨ eᵣ′ ⟩)
       → (vₗ · eᵣ) ⇒ (vₗ ·ᵣ ℰ) ⟨ eᵣ′ ⟩
 
     D-β-· : ∀ {vₗ vᵣ}
-      → vₗ value
-      → vᵣ value
+      → (Vₗ : vₗ value)
+      → (Vᵣ : vᵣ value)
       → (vₗ · vᵣ) ⇒ ∘ ⟨ vₗ · vᵣ ⟩
 
     D-ξ-+-l : ∀ {eₗ eᵣ ℰ eₗ′}
@@ -227,7 +256,7 @@ module Dynamics where
       → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
       → (A : (a , l) ⊢ ε₀ ⊣ ∥)
       → (T : e₀ —→ e₀′)
-      → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+      → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
       → (p , a , g , l) ⊢ e ⇥ e′
 
     skip : ∀ {p a g l e e′ e″ eᵢ e₀ e₀′ ε₀}
@@ -235,7 +264,7 @@ module Dynamics where
       → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
       → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
       → (T : e₀ —→ e₀′)
-      → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+      → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
       → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
       → (p , a , g , l) ⊢ e ⇥ e″
 
