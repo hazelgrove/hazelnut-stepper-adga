@@ -1,4 +1,4 @@
-open import Core
+open import Base
 open import Dynamics renaming (Ctx to EvalCtx)
 open import Data.Product using (_,_; _×_)
 open import Data.Nat using (ℕ; zero; suc; _≤_; s≤s; _<_; z≤n)

@@ -1,4 +1,4 @@
-open import Core
+open import Base
 open import Dynamics
 open import Data.Nat using (ℕ)
 open import Data.Sum using (_⊎_)
