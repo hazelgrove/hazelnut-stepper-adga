@@ -6,23 +6,21 @@ open import Statics
 open import Dynamics
 open import Preservation
 open import Data.Nat using (ℕ)
-open import Data.Sum using (_⊎_)
-open import Data.Product using (_×_; _,_; ∃-syntax)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Product using (_×_; _,_; ∃; ∃-syntax)
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
 open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym; trans)
 
 data _⊢_⇥⟨_⟩_ : Pat × Act × Gas × ℕ → Exp → ℕ → Exp → Set where
-  step : ∀ {p a g l e e′ eᵢ e₀ e₀′ ε ε₀}
-    → (p , a , g , l) ⊢ e ⇝ eᵢ
-    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+  step : ∀ {p a g l e e′ e₀ e₀′ ε ε₀}
+    → instr p a g l e ⇒ ε₀ ⟨ e₀ ⟩
     → (a , l) ⊢ ε ⊣ ∥
     → e₀ —→ e₀′
     → e′ ⇐ (decay ε) ⟨ e₀′ ⟩
     → (p , a , g , l) ⊢ e ⇥⟨ 1 ⟩ e′
 
-  skip : ∀ {p a g l e e′ e″ eᵢ e₀ e₀′ ε ε₀ n}
-    → (p , a , g , l) ⊢ e ⇝ eᵢ
-    → eᵢ ⇒ ε₀ ⟨ e₀ ⟩
+  skip : ∀ {p a g l e e′ e″ e₀ e₀′ ε ε₀ n}
+    → instr p a g l e ⇒ ε₀ ⟨ e₀ ⟩
     → e₀ filter-like ⊎ (a , l) ⊢ ε ⊣ ⊳
     → e₀ —→ e₀′
     → e′ ⇐ (decay ε) ⟨ e₀′ ⟩
@@ -37,6 +35,33 @@ data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
   P : ∀ {p a g l e e′ n}
     → (p , a , g , l) ⊢ e ⇥⟨ n ⟩ e′
     → Progress e under (p , a , g , l)
+
+⇒-progress : ∀ {Γ e τ}
+  → Γ ⊢[ e ]∶ τ
+  → e value ⊎ ∃(λ ((c , o) : Dynamics.Ctx × Exp) → e ⇒ c ⟨ o ⟩)
+⇒-progress (⊢-` {x = x} ∋) = inj₂ ((∘ , (` x)) , D-β-` {x})
+⇒-progress (⊢-ƛ ⊢) = inj₁ V-ƛ
+⇒-progress (⊢-· ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₁ Vₗ | inj₁ Vᵣ = inj₂ ((∘ , eₗ · eᵣ) , D-β-· Vₗ Vᵣ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₁ Vₗ | inj₂ ((c , o) , Dᵣ) = inj₂ (((eₗ ·ᵣ c) , o) , D-ξ-·-r Vₗ Dᵣ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₂ ((c , o) , Dₗ) | inj₁ Vᵣ = inj₂ ((c ·ₗ eᵣ , o) , D-ξ-·-l Dₗ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₂ ((c , o) , Dₗ) | inj₂ Dᵣ = inj₂ ((c ·ₗ eᵣ , o) , D-ξ-·-l Dₗ)
+⇒-progress (⊢-+ ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₁ Vₗ | inj₁ Vᵣ = inj₂ ((∘ , eₗ + eᵣ) , D-β-+ Vₗ Vᵣ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₁ Vₗ | inj₂ ((c , o) , Dᵣ) = inj₂ (((eₗ +ᵣ c) , o) , D-ξ-+-r Vₗ Dᵣ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₂ ((c , o) , Dₗ) | inj₁ Vᵣ = inj₂ ((c +ₗ eᵣ , o) , D-ξ-+-l Dₗ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | inj₂ ((c , o) , Dₗ) | inj₂ Dᵣ = inj₂ ((c +ₗ eᵣ , o) , D-ξ-+-l Dₗ)
+⇒-progress ⊢-# = inj₁ V-#
+⇒-progress (⊢-φ ⊢ₚ ⊢ₑ) with ⇒-progress ⊢ₑ
+⇒-progress (⊢-φ {p = p} {ag = ag} {e = e} ⊢ₚ ⊢ₑ) | inj₁ V = inj₂ ((∘ , φ (p , ag) e) , (D-β-φ V))
+⇒-progress (⊢-φ {p = p} {ag = ag} {e = e} ⊢ₚ ⊢ₑ) | inj₂ ((c , o) , D) = inj₂ (((φ (p , ag) c) , o) , (D-ξ-φ D))
+⇒-progress (⊢-δ ⊢) with ⇒-progress ⊢
+⇒-progress (⊢-δ {r = r} {e = e} ⊢) | inj₁ V = inj₂ ((∘ , (δ r e)) , D-β-δ V)
+⇒-progress (⊢-δ {r = r} {e = e} ⊢) | inj₂ ((c , o) , D) = inj₂ (((δ r c) , o) , D-ξ-δ D)
+
+-- ⇝-progress : ∀ {Γ p a g l e τ}
+--   → Γ ⊢ e ∶ τ
+--   → e value ⊎ 
 
 -- ⇝-progress {p = p} (⊢-` {x = x} ∋) with p matches? (` x)
 -- ⇝-progress {a = a} {g = g} {l = l} (⊢-` {x = x} ∋) | yes M-E = δ (a , g , l) (` x) , (I-`-⊤ M-E)
