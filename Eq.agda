@@ -1,4 +1,4 @@
-open import Core
+open import Base
 open import Data.Nat using (ℕ) renaming (_≟_ to _≟-nat_)
 open import Data.Product using (_×_; _,_; proj₁)
 open import Relation.Nullary using (Dec; yes; no; _×-dec_) renaming (map′ to map-dec)
@@ -7,25 +7,11 @@ module Eq where
   import Relation.Binary.PropositionalEquality as Eq
   open Eq public using (_≡_; refl; cong)
 
-  DecEq : ∀ (T : Set) → Set
-  DecEq T = (l : T) → (r : T) → Dec (l ≡ r)
-
-  instance
-    DecEqNat : DecEq ℕ
-    DecEqNat l r = l ≟-nat r
-
-  _≟_ : {T : Set} ⦃ DecEqT : DecEq T ⦄ → (l : T) → (r : T) → Dec (l ≡ r)
-  _≟_ ⦃ DecEqT ⦄ = DecEqT
-
   _≟-act_ : (aₗ : Act) → (aᵣ : Act) → Dec (aₗ ≡ aᵣ)
   ⊳ ≟-act ⊳ = yes refl
   ⊳ ≟-act ∥ = no (λ ())
   ∥ ≟-act ⊳ = no (λ ())
   ∥ ≟-act ∥ = yes refl
-
-  instance
-    DecEqAct : DecEq Act
-    DecEqAct = _≟-act_
 
   _≟-gas_ : (gₗ : Gas) → (gᵣ : Gas) → Dec (gₗ ≡ gᵣ)
   𝟙 ≟-gas 𝟙 = yes refl
@@ -33,18 +19,18 @@ module Eq where
   ⋆ ≟-gas 𝟙 = no (λ ())
   ⋆ ≟-gas ⋆ = yes refl
 
-  instance
-    DecEqGas : DecEq Gas
-    DecEqGas = _≟-gas_
-
   _≟-exp_ : (eₗ : Exp) → (eᵣ : Exp) → Dec (eₗ ≡ eᵣ)
   _≟-pat_ : (pₗ : Pat) → (pᵣ : Pat) → Dec (pₗ ≡ pᵣ)
 
-  -- instance
-  --   DecEqProduct : ∀ {A B} ⦃ DecEqA : DecEq A ⦄ ⦃ DecEqB : DecEq B ⦄ → DecEq (A × B)
-  --   DecEq.eq DecEqProduct (aₗ , aᵣ) (bₗ , bᵣ) with (aₗ ≟ bₗ) ×-dec (aᵣ ≟ bᵣ)
-  --   DecEq.eq DecEqProduct (aₗ , aᵣ) (aₗ , aᵣ) | yes (refl , refl) = yes refl
-  --   DecEq.eq DecEqProduct (aₗ , aᵣ) (bₗ , bᵣ) | no a≢b = no λ { refl → a≢b (refl , refl) }
+  _≟-filter_ : (fₗ : Filter) → (fᵣ : Filter) → Dec (fₗ ≡ fᵣ)
+  (pₗ , aₗ , gₗ) ≟-filter (pᵣ , aᵣ , gᵣ) with (pₗ ≟-pat pᵣ) ×-dec (aₗ ≟-act aᵣ) ×-dec (gₗ ≟-gas gᵣ)
+  (pₗ , aₗ , gₗ) ≟-filter (pᵣ , aᵣ , gᵣ) | yes (refl , refl , refl) = yes refl
+  (pₗ , aₗ , gₗ) ≟-filter (pᵣ , aᵣ , gᵣ) | no l≢r = no λ { refl → l≢r (refl , refl , refl) }
+
+  _≟-residue_ : (fₗ : Residue) → (fᵣ : Residue) → Dec (fₗ ≡ fᵣ)
+  (aₗ , gₗ , lₗ) ≟-residue (aᵣ , gᵣ , lᵣ) with (aₗ ≟-act aᵣ) ×-dec (gₗ ≟-gas gᵣ) ×-dec (lₗ ≟-nat lᵣ)
+  (aₗ , gₗ , lₗ) ≟-residue (aᵣ , gᵣ , lᵣ) | yes (refl , refl , refl) = yes refl
+  (aₗ , gₗ , lₗ) ≟-residue (aᵣ , gᵣ , lᵣ) | no l≢r = no λ { refl → l≢r (refl , refl , refl) }
 
   (` x) ≟-exp (` y) with x ≟-nat y
   (` x) ≟-exp (` y) | yes refl = yes refl
@@ -96,8 +82,8 @@ module Eq where
   φ f l ≟-exp (r · r₁) = no (λ ())
   φ f l ≟-exp (# n) = no (λ ())
   φ f l ≟-exp (r + r₁) = no (λ ())
-  φ fₗ eₗ ≟-exp φ fᵣ eᵣ with ({!!}) ×-dec (eₗ ≟-exp eᵣ)
-  φ fₗ eₗ ≟-exp φ fᵣ eᵣ | yes (x , refl) = yes x
+  φ fₗ eₗ ≟-exp φ fᵣ eᵣ with (fₗ ≟-filter fᵣ) ×-dec (eₗ ≟-exp eᵣ)
+  φ fₗ eₗ ≟-exp φ fₗ eₗ | yes (refl , refl) = yes refl
   φ fₗ eₗ ≟-exp φ fᵣ eᵣ | no l≢r = no λ { refl → l≢r (refl , refl) }
   φ f l ≟-exp δ r r₁ = no (λ ())
   δ r eₗ ≟-exp (` x) = no (λ ())
@@ -106,8 +92,8 @@ module Eq where
   δ r eₗ ≟-exp (# n) = no (λ ())
   δ r eₗ ≟-exp (eᵣ + eᵣ₁) = no (λ ())
   δ r eₗ ≟-exp φ f eᵣ = no (λ ())
-  δ rₗ eₗ ≟-exp δ rᵣ eᵣ with ({!!}) ×-dec (eₗ ≟-exp eᵣ)
-  δ rₗ eₗ ≟-exp δ rᵣ eᵣ | yes (x , refl) = yes {!!}
+  δ rₗ eₗ ≟-exp δ rᵣ eᵣ with (rₗ ≟-residue rᵣ) ×-dec (eₗ ≟-exp eᵣ)
+  δ rₗ eₗ ≟-exp δ rᵣ eᵣ | yes (refl , refl) = yes refl
   δ rₗ eₗ ≟-exp δ rᵣ eᵣ | no l≢r = no (λ { refl → l≢r (refl , refl) })
 
   $e ≟-pat $e = yes refl
@@ -142,13 +128,15 @@ module Eq where
   (ƛ e) ≟-pat (pᵣ · pᵣ₁) = no (λ ())
   (ƛ e) ≟-pat (# n) = no (λ ())
   (ƛ e) ≟-pat (pᵣ + pᵣ₁) = no (λ ())
-  (pₗ · pₗ₁) ≟-pat $e = no (λ ())
-  (pₗ · pₗ₁) ≟-pat $v = no (λ ())
-  (pₗ · pₗ₁) ≟-pat (` x) = no (λ ())
-  (pₗ · pₗ₁) ≟-pat (ƛ e) = no (λ ())
-  (pₗ · pₗ₁) ≟-pat (pᵣ · pᵣ₁) = {!!}
-  (pₗ · pₗ₁) ≟-pat (# n) = no (λ ())
-  (pₗ · pₗ₁) ≟-pat (pᵣ + pᵣ₁) = no (λ ())
+  (lₗ · lᵣ) ≟-pat $e = no (λ ())
+  (lₗ · lᵣ) ≟-pat $v = no (λ ())
+  (lₗ · lᵣ) ≟-pat (` x) = no (λ ())
+  (lₗ · lᵣ) ≟-pat (ƛ e) = no (λ ())
+  (lₗ · lᵣ) ≟-pat (rₗ · rᵣ) with (lₗ ≟-pat rₗ) ×-dec (lᵣ ≟-pat rᵣ)
+  (lₗ · lᵣ) ≟-pat (lₗ · lᵣ) | yes (refl , refl) = yes refl
+  (lₗ · lᵣ) ≟-pat (rₗ · rᵣ) | no l≢r = no λ { refl → l≢r (refl , refl) }
+  (lₗ · lᵣ) ≟-pat (# n) = no (λ ())
+  (lₗ · lᵣ) ≟-pat (rₗ + rᵣ) = no (λ ())
   (# n) ≟-pat $e = no (λ ())
   (# n) ≟-pat $v = no (λ ())
   (# n) ≟-pat (` x) = no (λ ())
@@ -158,19 +146,12 @@ module Eq where
   (# n) ≟-pat (# m) | yes refl = yes refl
   (# n) ≟-pat (# m) | no n≢m = no λ { refl → n≢m refl }
   (# n) ≟-pat (pᵣ + pᵣ₁) = no (λ ())
-  (pₗ + pₗ₁) ≟-pat $e = no (λ ())
-  (pₗ + pₗ₁) ≟-pat $v = no (λ ())
-  (pₗ + pₗ₁) ≟-pat (` x) = no (λ ())
-  (pₗ + pₗ₁) ≟-pat (ƛ e) = no (λ ())
-  (pₗ + pₗ₁) ≟-pat (pᵣ · pᵣ₁) = no (λ ())
-  (pₗ + pₗ₁) ≟-pat (# n) = no (λ ())
-  (pₗ + pₗ₁) ≟-pat (pᵣ + pᵣ₁) = {!!}
-
-  instance
-    DecEqExp : DecEq Exp
-    DecEqExp = _≟-exp_
-
-  instance
-    DecEqPat : DecEq Pat
-    DecEqPat = _≟-pat_
-
+  (lₗ + lᵣ) ≟-pat $e = no (λ ())
+  (lₗ + lᵣ) ≟-pat $v = no (λ ())
+  (lₗ + lᵣ) ≟-pat (` x) = no (λ ())
+  (lₗ + lᵣ) ≟-pat (ƛ e) = no (λ ())
+  (lₗ + lᵣ) ≟-pat (rₗ · rᵣ) = no (λ ())
+  (lₗ + lᵣ) ≟-pat (# n) = no (λ ())
+  (lₗ + lᵣ) ≟-pat (rₗ + rᵣ) with (lₗ ≟-pat rₗ) ×-dec (lᵣ ≟-pat rᵣ)
+  (lₗ + lᵣ) ≟-pat (rₗ + rᵣ) | yes (refl , refl) = yes refl
+  (lₗ + lᵣ) ≟-pat (rₗ + rᵣ) | no l≢r = no λ { refl → l≢r (refl , refl) }

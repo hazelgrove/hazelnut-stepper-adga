@@ -1,6 +1,7 @@
 module Base where
 
 open import Data.Nat using (ℕ)
+open import Data.Nat.Induction using (<′-wellFounded)
 open import Data.Product using (_×_)
 
 data Act : Set where
@@ -42,21 +43,6 @@ data Pat where
   _·_ : (l : Pat) → (r : Pat) → Pat
   #_  : (n : ℕ) → Pat
   _+_ : (l : Pat) → (r : Pat) → Pat
-
-record Term (T : Set) : Set where
-  field
-    var : (i : ℕ) → T
-
-instance
-  term-exp : Term Exp
-  Term.var term-exp i = ` i
-
-instance
-  term-pat : Term Pat
-  Term.var term-pat i = ` i
-
-var : {T : Set} ⦃ TermT : Term T ⦄ → (i : ℕ) → T
-var ⦃ TermT ⦄ i = Term.var TermT i
 
 data _value : Exp → Set where
   V-ƛ : ∀ {e : Exp}

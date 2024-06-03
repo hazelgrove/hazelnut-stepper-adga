@@ -4,14 +4,21 @@ open import Base
 open import Substitution
 open import Match
 open import Data.Integer using (+_)
-open import Data.Nat using (ℕ; _≤?_; _>_; _≤_; zero; suc; <-cmp; pred; s≤s)
+open import Data.Nat using (ℕ; _≤?_; _>_; _≤_; zero; suc; <-cmp; pred; s≤s; _<′_)
+open import Data.Nat.Induction using (<′-wellFounded)
 open import Data.Nat.Properties using (≰⇒>)
+open import Data.Product using (∃-syntax)
 open import Relation.Binary using (tri<; tri>; tri≈)
-open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym)
+open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym; trans)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
-open import Function using (id)
+open import Function using (id; _on_)
 open import Data.Product using (_×_; _,_)
+open import Relation.Binary using (Rel)
 open import Relation.Nullary using (¬_; yes; no)
+open import Induction using (RecStruct)
+open import Induction.WellFounded using (WellFounded; Acc; WfRec)
+open import Relation.Binary.Construct.On using (wellFounded)
+open import Induction.WellFounded using (WellFounded)
 
 applyₙ : (i : ℕ) → (x : ℕ) → (v : Exp) → Exp
 applyₙ i x v with <-cmp i x
@@ -138,6 +145,117 @@ data _⇐_⟨_⟩ : Exp → Ctx → Exp → Set where
     → e′ ⇐ ε ⟨ e ⟩
     → (δ agl  e′) ⇐ (δ agl  ε) ⟨ e ⟩
 
+count-φ : Exp → ℕ
+count-φ (` i) = 0
+count-φ (ƛ e) = count-φ e
+count-φ (eₗ · eᵣ) = count-φ eₗ Data.Nat.+ count-φ eᵣ
+count-φ (# n) = 0
+count-φ (eₗ + eᵣ) = count-φ eₗ Data.Nat.+ count-φ eᵣ
+count-φ (φ f e) = suc (count-φ e)
+count-φ (δ r e) = count-φ e
+
+_<-φ_ : Rel (Exp) _
+_<-φ_ = Data.Nat._<′_ on count-φ
+
+<-φ-wellFounded : WellFounded _<-φ_
+<-φ-wellFounded = wellFounded count-φ <′-wellFounded
+
+open import Level using (Level; 0ℓ)
+
+data _<-exp_ : Rel (Exp) 0ℓ where
+  <-·ₗ : ∀ {eₗ eᵣ}
+    → eₗ <-exp (eₗ · eᵣ)
+
+  <-·ᵣ : ∀ {eₗ eᵣ}
+    → eᵣ <-exp (eₗ · eᵣ)
+
+  <-+ₗ : ∀ {eₗ eᵣ}
+    → eₗ <-exp (eₗ + eᵣ)
+
+  <-+ᵣ : ∀ {eₗ eᵣ}
+    → eᵣ <-exp (eₗ + eᵣ)
+
+<-exp-Rec : {ℓ : Level} → RecStruct Exp ℓ ℓ
+<-exp-Rec = WfRec _<-exp_
+
+<-exp-wellFounded : WellFounded _<-exp_
+<-exp-wellFounded′ : ∀ e → (<-exp-Rec (Acc _<-exp_) e)
+
+<-exp-wellFounded e = Acc.acc (<-exp-wellFounded′ e)
+
+<-exp-wellFounded′ (eₗ · eᵣ) <-·ₗ = <-exp-wellFounded eₗ
+<-exp-wellFounded′ (eₗ · eᵣ) <-·ᵣ = <-exp-wellFounded eᵣ
+<-exp-wellFounded′ (eₗ + eᵣ) <-+ₗ = <-exp-wellFounded eₗ
+<-exp-wellFounded′ (eₗ + eᵣ) <-+ᵣ = <-exp-wellFounded eᵣ
+
+open import Data.Product.Relation.Binary.Lex.Strict  using (×-Lex; ×-wellFounded')
+
+_<-φ-exp_ : Rel (Exp × Exp) 0ℓ
+_<-φ-exp_ = ×-Lex (Eq._≡_ on count-φ) _<-φ_ _<-exp_
+
+<-φ-respects-≡φ : _<-φ_ Relation.Binary.Respectsʳ (_≡_ on count-φ)
+<-φ-respects-≡φ {x = x} {y} {z} ≡φ <φ with count-φ y with count-φ z
+... | φy | φz = subst ((suc (count-φ x)) Data.Nat.≤′_) ≡φ <φ
+
+<-φ-exp-wellFounded : WellFounded _<-φ-exp_
+<-φ-exp-wellFounded = ×-wellFounded' Eq.trans (λ { {x = x} {y} {z} ≡φ <φ → subst ((suc (count-φ x)) Data.Nat.≤′_) ≡φ <φ }) <-φ-wellFounded <-exp-wellFounded
+
+open Induction.WellFounded.All (<-φ-wellFounded) renaming (wfRec to <-φ-rec)
+
+sm≤′m+sr : ∀ {m r} → suc m Data.Nat.≤′ (m Data.Nat.+ suc r)
+sm≤′m+sr {m} {zero} rewrite Data.Nat.Properties.+-comm m 1 = Data.Nat.≤′-refl
+sm≤′m+sr {m} {suc r} rewrite Data.Nat.Properties.+-comm m (suc (suc r)) rewrite Data.Nat.Properties.+-comm (suc r) m = Data.Nat.≤′-step sm≤′m+sr
+
+sm≤′sm+r : ∀ {m r} → suc m Data.Nat.≤′ (suc r) Data.Nat.+ m
+sm≤′sm+r {m} {zero} = Data.Nat.Properties.s≤′s Data.Nat.≤′-refl
+sm≤′sm+r {m} {suc r} = Data.Nat.≤′-step sm≤′sm+r
+
+<-φ-exp-·ₗ : ∀ {eₗ} {eᵣ} → (eₗ , eₗ) <-φ-exp (eₗ · eᵣ , eₗ · eᵣ)
+<-φ-exp-·ₗ {eₗ} {eᵣ} with count-φ eᵣ
+<-φ-exp-·ₗ {eₗ} {eᵣ} | zero = inj₂ (Data.Nat.Properties.+-comm 0 (count-φ eₗ) , <-·ₗ)
+<-φ-exp-·ₗ {eₗ} {eᵣ} | suc φᵣ = inj₁ sm≤′m+sr
+
+<-φ-exp-·ᵣ : ∀ {eₗ} {eᵣ} → (eᵣ , eᵣ) <-φ-exp (eₗ · eᵣ , eₗ · eᵣ)
+<-φ-exp-·ᵣ {eₗ} {eᵣ} with count-φ eₗ
+<-φ-exp-·ᵣ {eₗ} {eᵣ} | zero = inj₂ (refl , <-·ᵣ)
+<-φ-exp-·ᵣ {eₗ} {eᵣ} | suc φₗ = inj₁ sm≤′sm+r
+
+<-φ-exp-+ₗ : ∀ {eₗ} {eᵣ} → (eₗ , eₗ) <-φ-exp (eₗ + eᵣ , eₗ + eᵣ)
+<-φ-exp-+ₗ {eₗ} {eᵣ} with count-φ eᵣ
+<-φ-exp-+ₗ {eₗ} {eᵣ} | zero = inj₂ (Data.Nat.Properties.+-comm 0 (count-φ eₗ) , <-+ₗ)
+<-φ-exp-+ₗ {eₗ} {eᵣ} | suc φᵣ = inj₁ sm≤′m+sr
+
+<-φ-exp-+ᵣ : ∀ {eₗ} {eᵣ} → (eᵣ , eᵣ) <-φ-exp (eₗ + eᵣ , eₗ + eᵣ)
+<-φ-exp-+ᵣ {eₗ} {eᵣ} with count-φ eₗ
+<-φ-exp-+ᵣ {eₗ} {eᵣ} | zero = inj₂ (refl , <-+ᵣ)
+<-φ-exp-+ᵣ {eₗ} {eᵣ} | suc φₗ = inj₁ sm≤′sm+r
+
+instr′ : (p : Pat) (a : Act) (g : Gas) (lvl : ℕ) (e : Exp) → Acc _<-φ-exp_ (e , e) → ∃[ e′ ](count-φ e ≡ count-φ e′)
+instr′ p a g l (` i) (Acc.acc rs) with (p matches? (` i))
+instr′ p a g l (` i) (Acc.acc rs) | yes _ = δ (a , g , l) (` i) , refl
+instr′ p a g l (` i) (Acc.acc rs) | no  _ = (` i) , refl
+instr′ p a g l (ƛ e) (Acc.acc rs) = ƛ e , refl
+instr′ p a g l (eₗ · eᵣ) (Acc.acc rs) with (p matches? (eₗ · eᵣ)) with instr′ p a g l eₗ (rs <-φ-exp-·ₗ) with instr′ p a g l eᵣ (rs <-φ-exp-·ᵣ)
+instr′ p a g l (eₗ · eᵣ) (Acc.acc rs) | yes _ | eₗ′ , ≡ₗ | eᵣ′ , ≡ᵣ rewrite ≡ₗ rewrite ≡ᵣ = (δ (a , g , l) eₗ′ · eᵣ′) , refl
+instr′ p a g l (eₗ · eᵣ) (Acc.acc rs) | no  _ | eₗ′ , ≡ₗ | eᵣ′ , ≡ᵣ rewrite ≡ₗ rewrite ≡ᵣ = eₗ′ · eᵣ′ , refl
+instr′ p a g l (# n) (Acc.acc rs) = (# n) , refl
+instr′ p a g l (eₗ + eᵣ) (Acc.acc rs) with (p matches? (eₗ + eᵣ)) with instr′ p a g l eₗ (rs <-φ-exp-+ₗ) with instr′ p a g l eᵣ (rs <-φ-exp-+ᵣ)
+instr′ p a g l (eₗ + eᵣ) (Acc.acc rs) | yes _ | eₗ′ , ≡ₗ | eᵣ′ , ≡ᵣ rewrite ≡ₗ rewrite ≡ᵣ = (δ (a , g , l) eₗ′ + eᵣ′) , refl
+instr′ p a g l (eₗ + eᵣ) (Acc.acc rs) | no  _ | eₗ′ , ≡ₗ | eᵣ′ , ≡ᵣ rewrite ≡ₗ rewrite ≡ᵣ = eₗ′ + eᵣ′ , refl
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) with instr′ p a g l e (rs (inj₁ Data.Nat.≤′-refl))
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ with instr′ p₀ a₀ g₀ (Data.Nat.ℕ.suc l) e′ (rs (inj₁ (<-φ-subst {e} {e′} {(p₀ , a₀ , g₀)} e≡φe′)))
+  where
+    <-φ-subst : ∀ {e e′ f}
+      → count-φ e ≡ count-φ e′
+      → e′ <-φ φ f e
+    <-φ-subst {e = e} {f = f} e≡φe′ = subst (_<′ Data.Nat.ℕ.suc (count-φ e)) e≡φe′ Data.Nat.≤′-refl
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ | e″ , e′≡φe″ = (φ (p₀ , a₀ , g₀) e″) , cong Data.Nat.ℕ.suc (trans e≡φe′ e′≡φe″)
+instr′ p a g l (δ r e) (Acc.acc rs) = δ r e , refl
+
+instr : (p : Pat) (a : Act) (g : Gas) (lvl : ℕ) (e : Exp) → Exp
+instr p a g l e with instr′ p a g l e (<-φ-exp-wellFounded (e , e))
+instr p a g l e | e′ , ≡φ = e′
+
 data _⊢_⇝_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
   I-V : ∀ {pagl v}
     → v value
@@ -253,17 +371,15 @@ data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
 ... | no  ≰ = A-Δ-> (≰⇒> ≰) ⊢⊣-select
 
 data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
-  step : ∀ {p a g l e e′ eᵢ e₀ e₀′ ε₀}
-    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
+  step : ∀ {p a g l e e′ e₀ e₀′ ε₀}
+    → (D : instr p a g l e ⇒ ε₀ ⟨ e₀ ⟩)
     → (A : (a , l) ⊢ ε₀ ⊣ ∥)
     → (T : e₀ —→ e₀′)
     → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
     → (p , a , g , l) ⊢ e ⇥ e′
 
-  skip : ∀ {p a g l e e′ e″ eᵢ e₀ e₀′ ε₀}
-    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
+  skip : ∀ {p a g l e e′ e″ e₀ e₀′ ε₀}
+    → (D : instr p a g l e ⇒ ε₀ ⟨ e₀ ⟩)
     → (A : e₀ filter-like ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
     → (T : e₀ —→ e₀′)
     → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
