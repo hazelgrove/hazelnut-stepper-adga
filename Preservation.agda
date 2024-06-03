@@ -25,26 +25,25 @@ strip-preserve ⊢-#         = ⊢-#
 strip-preserve (⊢-φ ⊢ₚ ⊢ₑ) = strip-preserve ⊢ₑ
 strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
 
-⇝-preserve : ∀ {Γ p a g l e τ}
+⇝-preserve : ∀ {Γ s e₁ e₂ τ}
+  → Γ ⊢ e₁ ∶ τ
+  → s ⊢ e₁ ⇝ e₂
+  → Γ ⊢ e₂ ∶ τ
+⇝-preserve (⊢-ƛ ⊢) (I-V V) = ⊢-ƛ ⊢
+⇝-preserve (⊢-#) (I-V V) = ⊢-#
+⇝-preserve (⊢-` ∋) (I-`-⊤ M) = ⊢-δ (⊢-` ∋)
+⇝-preserve (⊢-` ∋) (I-`-⊥ M) = ⊢-` ∋
+⇝-preserve (⊢-· ⊢ₗ ⊢ᵣ) (I-·-⊤ M Iₗ Iᵣ) = ⊢-δ (⊢-· (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ))
+⇝-preserve (⊢-· ⊢ₗ ⊢ᵣ) (I-·-⊥ M Iₗ Iᵣ) = ⊢-· (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ)
+⇝-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (I-+-⊤ M Iₗ Iᵣ) = ⊢-δ (⊢-+ (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ))
+⇝-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (I-+-⊥ M Iₗ Iᵣ) = ⊢-+ (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ)
+⇝-preserve (⊢-φ ⊢ₚ ⊢ₑ) (I-φ I₀ I₁) = ⊢-φ ⊢ₚ (⇝-preserve (⇝-preserve ⊢ₑ I₀) I₁)
+⇝-preserve (⊢-δ ⊢) (I-δ I) = ⊢-δ (⇝-preserve ⊢ I)
+
+instr-preserve : ∀ {Γ p a g l e τ}
   → Γ ⊢ e ∶ τ
   → Γ ⊢ instr p a g l e ∶ τ
-⇝-preserve (⊢-` ∋) = {!!}
-⇝-preserve (⊢-ƛ ⊢) = {!!}
-⇝-preserve (⊢-· ⊢ ⊢₁) = {!!}
-⇝-preserve (⊢-+ ⊢ ⊢₁) = {!!}
-⇝-preserve ⊢-# = {!!}
-⇝-preserve (⊢-φ x ⊢) = {!!}
-⇝-preserve (⊢-δ ⊢) = {!!}
--- ⇝-preserve (⊢-ƛ ⊢) (I-V V) = ⊢-ƛ ⊢
--- ⇝-preserve (⊢-#)   (I-V V) = ⊢-#
--- ⇝-preserve (⊢-` ∋) (I-`-⊤ M) = ⊢-δ (⊢-` ∋)
--- ⇝-preserve (⊢-` ∋) (I-`-⊥ M) = ⊢-` ∋
--- ⇝-preserve (⊢-· ⊢ₗ ⊢ᵣ) (I-·-⊤ M Iₗ Iᵣ) = ⊢-δ (⊢-· (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ))
--- ⇝-preserve (⊢-· ⊢ₗ ⊢ᵣ) (I-·-⊥ M Iₗ Iᵣ) = ⊢-· (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ)
--- ⇝-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (I-+-⊤ M Iₗ Iᵣ) = ⊢-δ (⊢-+ (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ))
--- ⇝-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (I-+-⊥ M Iₗ Iᵣ) = ⊢-+ (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ)
--- ⇝-preserve (⊢-φ ⊢ₚ ⊢ₑ) (I-φ I₀ I₁) = ⊢-φ ⊢ₚ (⇝-preserve (⇝-preserve ⊢ₑ I₀) I₁)
--- ⇝-preserve (⊢-δ ⊢) (I-δ I) = ⊢-δ (⇝-preserve ⊢ I)
+instr-preserve {Γ} {p} {a} {g} {l} {e} ⊢ = ⇝-preserve ⊢ (⇝-instr p a g l e)
 
 ⇐-preserve : ∀ {Γ} {e e′ e₀ e₀′ : Exp} {τ} {ε : Dynamics.Ctx}
   → Γ ⊢ e ∶ τ
@@ -196,6 +195,6 @@ preserve : ∀ {Γ s e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
   → s ⊢ e₁ ⇥ e₂
   → Γ ⊢ e₂ ∶ τ
-preserve ⊢ (step D A T C) = ⇐-preserve (⇝-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
-preserve ⊢ (skip D A T C S) = preserve (⇐-preserve (⇝-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
+preserve ⊢ (step D A T C) = ⇐-preserve (instr-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
+preserve ⊢ (skip D A T C S) = preserve (⇐-preserve (instr-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
 preserve ⊢ (done V) = ⊢
