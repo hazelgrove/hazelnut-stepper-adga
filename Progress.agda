@@ -27,7 +27,7 @@ data _⊢_⇥′_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → (R : (p , a , g , l) ⊢ e ⇥′ e′)
     → (I : (p , a , g , l) ⊢ e′ ⇝ eᵢ)
     → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : e₀ filter-like ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
+    → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
     → (T : e₀ —→ e₀′)
     → (C : e″ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
     → (p , a , g , l) ⊢ e ⇥′ e″
@@ -38,7 +38,7 @@ data _⊢_⇥′_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
 
 data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
   P : ∀ {p a g l e e′}
-    → (p , a , g , l) ⊢ e ⇥ e′
+    → e ⇥ e′
     → Progress e under (p , a , g , l)
 
 data ⇒-Progress : Exp → Set where
@@ -89,14 +89,14 @@ value-⇜-value V-# (I-V V-#) = V-#
 ⇒-progress (⊢-ƛ ⊢) = ⇒-V V-ƛ
 ⇒-progress (⊢-· ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
 ⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-V Vᵣ = ⇒-D (D-β-· Vₗ Vᵣ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·-r Vₗ Dᵣ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-·-l Dₗ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·-l Dₗ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·ᵣ Vₗ Dᵣ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-·ₗ Dₗ)
+⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·ₗ Dₗ)
 ⇒-progress (⊢-+ ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
 ⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-V Vᵣ = ⇒-D (D-β-+ Vₗ Vᵣ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+-r Vₗ Dᵣ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-+-l Dₗ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+-l Dₗ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+ᵣ Vₗ Dᵣ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-+ₗ Dₗ)
+⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+ₗ Dₗ)
 ⇒-progress ⊢-# = ⇒-V V-#
 ⇒-progress (⊢-φ ⊢ₚ ⊢ₑ) with ⇒-progress ⊢ₑ
 ⇒-progress (⊢-φ {p = p} {ag = ag} {e = e} ⊢ₚ ⊢ₑ) | ⇒-V V = ⇒-D (D-β-φ V)
@@ -114,11 +114,11 @@ value-⇜-value V-# (I-V V-#) = V-#
   → ∅ ⊢ e ∶ τ
   → e ⇒ c ⟨ o ⟩
   → ∃[ o′ ](o —→ o′)
-→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·-l D) = →-progress ⊢ₗ D
-→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·-r V D) = →-progress ⊢ᵣ D
+→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ₗ D) = →-progress ⊢ₗ D
+→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ᵣ V D) = →-progress ⊢ᵣ D
 →-progress (⊢-· {eᵣ = eᵣ} (⊢-ƛ {e = e} ⊢ₗ) ⊢ᵣ) (D-β-· V-ƛ Vᵣ) = applyₑ e 0 eᵣ , T-β-· Vᵣ
-→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+-l D) = →-progress ⊢ₗ D
-→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+-r V D) = →-progress ⊢ᵣ D
+→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ₗ D) = →-progress ⊢ₗ D
+→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ᵣ V D) = →-progress ⊢ᵣ D
 →-progress (⊢-+ (⊢-# {n = nₗ}) (⊢-# {n = nᵣ})) (D-β-+ V-# V-#) = (# (nₗ Data.Nat.+ nᵣ)) , T-β-+
 →-progress (⊢-φ x ⊢) (D-ξ-φ D) = →-progress ⊢ D
 →-progress (⊢-φ {e = e} x ⊢) (D-β-φ V) = e , (T-β-φ V)
@@ -143,20 +143,4 @@ value-⇜-value V-# (I-V V-#) = V-#
 progress : ∀ {p a g l e τ}
   → ∅ ⊢[ e ]∶ τ
   → ∃[ e′ ]((p , a , g , l) ⊢ e ⇥′ e′)
-progress {p} {a} {g} {l} {ƛ e} (⊢-ƛ ⊢) = ƛ e , done V-ƛ
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) with progress p a g l (⊢-· ⊢ₗ ⊢ᵣ)
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) with ⇝-progress p a g l (⊢-· ⊢ₗ ⊢ᵣ)
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ with ⇒-progress ⊢ᵢ
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-V Vᵢ with value-⇜-value Vᵢ I
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-V Vᵢ | ()
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D with ⊢⊣-progress a l D
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ⊳ , A with →-progress ⊢ᵢ D
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ⊳ , A | o′ , T with ⇐-progress′ ⊢ᵢ D T
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ⊳ , A | o′ , T | e′ , C with ⇐-preserve′ ⊢ᵢ D T C
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ⊳ , A | o′ , T | e′ , C | ⊢′ with progress ⊢
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ⊳ , A | o′ , T | e′ , C | ⊢′ | x = {!!}
-progress {p} {a} {g} {l} {eₗ · eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | eᵢ , I , ⊢ᵢ | ⇒-D D | ∥ , A = {!!}
-progress {p} {a} {g} {l} {.(_ + _)} (⊢-+ ⊢ ⊢₁) = {!!}
-progress {p} {a} {g} {l} {.(# _)} ⊢-# = {!!}
-progress {p} {a} {g} {l} {.(φ (_ , _) _)} (⊢-φ x ⊢) = {!!}
-progress {p} {a} {g} {l} {.(δ _ _)} (⊢-δ ⊢) = {!!}
+progress {p} {a} {g} {l} {e} ⊢ = {!!}
