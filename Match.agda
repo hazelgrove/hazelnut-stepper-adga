@@ -13,9 +13,9 @@ import Relation.Nullary.Decidable as Dec
 strip : Exp → Exp
 strip (` x) = ` x
 strip (ƛ e) = ƛ (strip e)
-strip (l · r) = (strip l) · (strip r)
+strip (l `· r) = (strip l) `· (strip r)
 strip (# n) = # n
-strip (l + r) = (strip l) + (strip r)
+strip (l `+ r) = (strip l) `+ (strip r)
 strip (φ f e) = strip e
 strip (δ r e) = strip e
 
@@ -29,10 +29,10 @@ data _matches_ : Pat → Exp → Set where
     → v value
     → $v matches v
 
-  M-· : ∀ {pₗ pᵣ eₗ eᵣ}
+  M-`· : ∀ {pₗ pᵣ eₗ eᵣ}
     → pₗ matches eₗ
     → pᵣ matches eᵣ
-    → (pₗ · pᵣ) matches (eₗ · eᵣ)
+    → (pₗ `· pᵣ) matches (eₗ `· eᵣ)
 
   M-ƛ : ∀ {eₚ eₑ}
     → (strip eₚ) ≡ (strip eₑ)
@@ -43,16 +43,16 @@ infix 4 _matches?_
 _matches?_ : (p : Pat) → (e : Exp) → Dec (p matches e)
 $e matches? ` x   = yes M-E
 $e matches? ƛ e   = yes M-E
-$e matches? l · r = yes M-E
+$e matches? l `· r = yes M-E
 $e matches? (# n) = yes M-E
-$e matches? l + r = yes M-E
+$e matches? l `+ r = yes M-E
 $e matches? φ f e = yes M-E
 $e matches? δ r e = yes M-E
 $v matches? ` x = no (λ { (M-V ()) })
 $v matches? ƛ e = yes (M-V V-ƛ)
-$v matches? l · r = no λ { (M-V ()) }
+$v matches? l `· r = no λ { (M-V ()) }
 $v matches? (# n) = yes (M-V V-#)
-$v matches? l + r = no λ { (M-V ()) }
+$v matches? l `+ r = no λ { (M-V ()) }
 $v matches? φ f e = no λ { (M-V ()) }
 $v matches? δ r e = no λ { (M-V ()) }
 ` x matches? e = no (λ ())
@@ -60,19 +60,19 @@ $v matches? δ r e = no λ { (M-V ()) }
 ƛ p matches? ƛ e with (strip p) ≟-exp (strip e)
 ƛ p matches? ƛ e | yes p≡e = yes (M-ƛ p≡e)
 ƛ p matches? ƛ e | no  p≢e = no λ { (M-ƛ p≡e) → p≢e p≡e }
-ƛ p matches? l · r = no (λ ())
+ƛ p matches? l `· r = no (λ ())
 ƛ p matches? (# n) = no (λ ())
-ƛ p matches? l + r = no (λ ())
+ƛ p matches? l `+ r = no (λ ())
 ƛ p matches? φ f e = no (λ ())
 ƛ p matches? δ r e = no (λ ())
-pₗ · pᵣ matches? ` i = no (λ ())
-pₗ · pᵣ matches? ƛ e = no (λ ())
-pₗ · pᵣ matches? eₗ · eᵣ with (pₗ matches? eₗ) ×-dec (pᵣ matches? eᵣ)
-(pₗ · pᵣ) matches? (eₗ · eᵣ) | yes (Mₗ , Mᵣ) = yes (M-· Mₗ Mᵣ)
-pₗ · pᵣ matches? eₗ · eᵣ | no ¬M = no λ { (M-· Mₗ Mᵣ) → ¬M (Mₗ , Mᵣ) }
-pₗ · pᵣ matches? (# n) = no (λ ())
-pₗ · pᵣ matches? eₗ + eᵣ = no (λ ())
-pₗ · pᵣ matches? φ f e = no (λ ())
-pₗ · pᵣ matches? δ r e = no (λ ())
+pₗ `· pᵣ matches? ` i = no (λ ())
+pₗ `· pᵣ matches? ƛ e = no (λ ())
+pₗ `· pᵣ matches? eₗ `· eᵣ with (pₗ matches? eₗ) ×-dec (pᵣ matches? eᵣ)
+(pₗ `· pᵣ) matches? (eₗ `· eᵣ) | yes (Mₗ , Mᵣ) = yes (M-`· Mₗ Mᵣ)
+pₗ `· pᵣ matches? eₗ `· eᵣ | no ¬M = no λ { (M-`· Mₗ Mᵣ) → ¬M (Mₗ , Mᵣ) }
+pₗ `· pᵣ matches? (# n) = no (λ ())
+pₗ `· pᵣ matches? eₗ `+ eᵣ = no (λ ())
+pₗ `· pᵣ matches? φ f e = no (λ ())
+pₗ `· pᵣ matches? δ r e = no (λ ())
 (# n) matches? e = no (λ ())
-p + p₁ matches? e = no (λ ())
+p `+ p₁ matches? e = no (λ ())

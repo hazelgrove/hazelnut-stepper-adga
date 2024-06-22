@@ -3,6 +3,7 @@ module Base where
 open import Data.Nat using (ℕ)
 open import Data.Nat.Induction using (<′-wellFounded)
 open import Data.Product using (_×_)
+open import Relation.Nullary using (Dec; yes; no)
 
 data Act : Set where
   ⊳ : Act
@@ -22,27 +23,27 @@ Residue : Set
 Residue = Act × Gas × ℕ
 
 infix  5 ƛ_
-infixl 7 _+_
-infixl 8 _·_
+infixl 7 _`+_
+infixl 8 _`·_
 infix  9 `_
 
 data Exp where
-  `_  : (i : ℕ) → Exp
-  ƛ_  : (e : Exp) → Exp
-  _·_ : (l : Exp) → (r : Exp) → Exp
-  #_  : (n : ℕ) → Exp
-  _+_ : (l : Exp) → (r : Exp) → Exp
-  φ   : (f : Filter) → (e : Exp) → Exp
-  δ   : (r : Residue) → (e : Exp) → Exp
+  `_   : (i : ℕ) → Exp
+  ƛ_   : (e : Exp) → Exp
+  _`·_ : (l : Exp) → (r : Exp) → Exp
+  #_   : (n : ℕ) → Exp
+  _`+_ : (l : Exp) → (r : Exp) → Exp
+  φ    : (f : Filter) → (e : Exp) → Exp
+  δ    : (r : Residue) → (e : Exp) → Exp
 
 data Pat where
-  $e  : Pat
-  $v  : Pat
-  `_  : (i : ℕ) → Pat
-  ƛ_  : (e : Exp) → Pat
-  _·_ : (l : Pat) → (r : Pat) → Pat
-  #_  : (n : ℕ) → Pat
-  _+_ : (l : Pat) → (r : Pat) → Pat
+  $e   : Pat
+  $v   : Pat
+  `_   : (i : ℕ) → Pat
+  ƛ_   : (e : Exp) → Pat
+  _`·_ : (l : Pat) → (r : Pat) → Pat
+  #_   : (n : ℕ) → Pat
+  _`+_ : (l : Pat) → (r : Pat) → Pat
 
 data _value : Exp → Set where
   V-ƛ : ∀ {e : Exp}
@@ -50,13 +51,22 @@ data _value : Exp → Set where
   V-# : ∀ {n : ℕ}
     → (# n) value
 
+_value? : (e : Exp) → Dec (e value)
+(` i) value? = no λ ()
+(ƛ e) value? = yes V-ƛ
+(e `· e₁) value? = no (λ ())
+(# n) value? = yes V-#
+(e `+ e₁) value? = no (λ ())
+φ f e value? = no (λ ())
+δ r e value? = no (λ ())
+
 data Val : Set where
   #_ : (n : ℕ) → Val
   ƛ_ : (e : Exp) → Val
 
-data _filter-like : Exp → Set where
+data _filter : Exp → Set where
   F-φ : ∀ {f e}
-    → φ f e filter-like
+    → φ f e filter
 
   F-δ : ∀ {r e}
-    → δ r e filter-like
+    → δ r e filter

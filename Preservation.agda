@@ -40,48 +40,34 @@ strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
 ⇝-preserve (⊢-φ ⊢ₚ ⊢ₑ) (I-φ I₀ I₁) = ⊢-φ ⊢ₚ (⇝-preserve (⇝-preserve ⊢ₑ I₀) I₁)
 ⇝-preserve (⊢-δ ⊢) (I-δ I) = ⊢-δ (⇝-preserve ⊢ I)
 
-instr-preserve : ∀ {Γ p a g l e τ}
-  → Γ ⊢ e ∶ τ
-  → Γ ⊢ instr p a g l e ∶ τ
-instr-preserve {Γ} {p} {a} {g} {l} {e} ⊢ = ⇝-preserve ⊢ (⇝-instr p a g l e)
-
 ⇐-preserve : ∀ {Γ} {e e′ e₀ e₀′ : Exp} {τ} {ε : Dynamics.Ctx}
   → Γ ⊢ e ∶ τ
   → e ⇒ ε ⟨ e₀ ⟩
   → (∀ {τ₀} → Γ ⊢ e₀ ∶ τ₀ → Γ ⊢ e₀′ ∶ τ₀)
   → e′ ⇒ (decay ε) ⟨ e₀′ ⟩
   → Γ ⊢ e′ ∶ τ
-⇐-preserve ⊢ D-β-` P₀ D-β-` = P₀ ⊢
-⇐-preserve ⊢ D-β-` P₀ (D-β-· Vₗ Vᵣ) = P₀ ⊢
-⇐-preserve ⊢ D-β-` P₀ (D-β-+ Vₗ Vᵣ) = P₀ ⊢
-⇐-preserve ⊢ D-β-` P₀ (D-β-φ V) = P₀ ⊢
-⇐-preserve ⊢ D-β-` P₀ (D-β-δ V) = P₀ ⊢
-⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·-l D) P₀ (D-ξ-·-l C) = ⊢-· (⇐-preserve ⊢ₗ D P₀ C) ⊢ᵣ
-⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·-r V D) P₀ (D-ξ-·-r _ C) = ⊢-· ⊢ₗ (⇐-preserve ⊢ᵣ D P₀ C)
-⇐-preserve ⊢ (D-β-· Vₗ Vᵣ) P₀ D-β-` = P₀ ⊢
-⇐-preserve ⊢ (D-β-· Vₗ Vᵣ) P₀ (D-β-· Vₗ₁ Vᵣ₁) = P₀ ⊢
-⇐-preserve ⊢ (D-β-· Vₗ Vᵣ) P₀ (D-β-+ Vₗ₁ Vᵣ₁) = P₀ ⊢
-⇐-preserve ⊢ (D-β-· Vₗ Vᵣ) P₀ (D-β-φ V) = P₀ ⊢
-⇐-preserve ⊢ (D-β-· Vₗ Vᵣ) P₀ (D-β-δ V) = P₀ ⊢
-⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+-l D) P₀ (D-ξ-+-l C) = ⊢-+ (⇐-preserve ⊢ₗ D P₀ C) ⊢ᵣ
-⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+-r V D) P₀ (D-ξ-+-r _ C) = ⊢-+ ⊢ₗ (⇐-preserve ⊢ᵣ D P₀ C)
-⇐-preserve ⊢ (D-β-+ Vₗ Vᵣ) P₀ D-β-` = P₀ ⊢
-⇐-preserve ⊢ (D-β-+ Vₗ Vᵣ) P₀ (D-β-· Vₗ₁ Vᵣ₁) = P₀ ⊢
-⇐-preserve ⊢ (D-β-+ Vₗ Vᵣ) P₀ (D-β-+ Vₗ₁ Vᵣ₁) = P₀ ⊢
-⇐-preserve ⊢ (D-β-+ Vₗ Vᵣ) P₀ (D-β-φ V) = P₀ ⊢
-⇐-preserve ⊢ (D-β-+ Vₗ Vᵣ) P₀ (D-β-δ V) = P₀ ⊢
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ₗ D) P₀ (D-ξ-·ₗ C) = ⊢-· (⇐-preserve ⊢ₗ D P₀ C) ⊢ᵣ
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ᵣ V D) P₀ (D-ξ-·ᵣ _ C) = ⊢-· ⊢ₗ (⇐-preserve ⊢ᵣ D P₀ C)
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-β-· Vₗ Vᵣ) P₀ (D-β-· Vₗ₁ Vᵣ₁) = P₀ (⊢-· ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-β-· Vₗ Vᵣ) P₀ (D-β-+ Vₗ₁ Vᵣ₁) = P₀ (⊢-· ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-β-· Vₗ Vᵣ) P₀ (D-β-φ V) = P₀ (⊢-· ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-β-· Vₗ Vᵣ) P₀ (D-β-δ V) = P₀ (⊢-· ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ₗ D) P₀ (D-ξ-+ₗ C) = ⊢-+ (⇐-preserve ⊢ₗ D P₀ C) ⊢ᵣ
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ᵣ V D) P₀ (D-ξ-+ᵣ _ C) = ⊢-+ ⊢ₗ (⇐-preserve ⊢ᵣ D P₀ C)
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-β-+ Vₗ Vᵣ) P₀ (D-β-· Vₗ₁ Vᵣ₁) = P₀ (⊢-+ ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-β-+ Vₗ Vᵣ) P₀ (D-β-+ Vₗ₁ Vᵣ₁) = P₀ (⊢-+ ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-β-+ Vₗ Vᵣ) P₀ (D-β-φ V) = P₀ (⊢-+ ⊢ₗ ⊢ᵣ)
+⇐-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (D-β-+ Vₗ Vᵣ) P₀ (D-β-δ V) = P₀ (⊢-+ ⊢ₗ ⊢ᵣ)
 ⇐-preserve (⊢-φ x ⊢) (D-ξ-φ D) P₀ C = ⇐-preserve ⊢ D P₀ C
-⇐-preserve (⊢-φ x ⊢) (D-β-φ V) P₀ D-β-` = P₀ (⊢-φ x ⊢)
 ⇐-preserve (⊢-φ x ⊢) (D-β-φ V) P₀ (D-β-· Vₗ Vᵣ) = P₀ (⊢-φ x ⊢)
 ⇐-preserve (⊢-φ x ⊢) (D-β-φ V) P₀ (D-β-+ Vₗ Vᵣ) = P₀ (⊢-φ x ⊢)
 ⇐-preserve (⊢-φ x ⊢) (D-β-φ V) P₀ (D-β-φ V₁) = P₀ (⊢-φ x ⊢)
 ⇐-preserve (⊢-φ x ⊢) (D-β-φ V) P₀ (D-β-δ V₁) = P₀ (⊢-φ x ⊢)
 ⇐-preserve (⊢-δ ⊢) (D-ξ-δ D) P₀ C = ⇐-preserve ⊢ D P₀ C
-⇐-preserve ⊢ (D-β-δ V) P₀ D-β-` = P₀ ⊢
-⇐-preserve ⊢ (D-β-δ V) P₀ (D-β-· Vₗ Vᵣ) = P₀ ⊢
-⇐-preserve ⊢ (D-β-δ V) P₀ (D-β-+ Vₗ Vᵣ) = P₀ ⊢
-⇐-preserve ⊢ (D-β-δ V) P₀ (D-β-φ V₁) = P₀ ⊢
-⇐-preserve ⊢ (D-β-δ V) P₀ (D-β-δ V₁) = P₀ ⊢
+⇐-preserve (⊢-δ ⊢) (D-β-δ V) P₀ (D-β-· Vₗ Vᵣ) = P₀ (⊢-δ ⊢)
+⇐-preserve (⊢-δ ⊢) (D-β-δ V) P₀ (D-β-+ Vₗ Vᵣ) = P₀ (⊢-δ ⊢)
+⇐-preserve (⊢-δ ⊢) (D-β-δ V) P₀ (D-β-φ V₁) = P₀ (⊢-δ ⊢)
+⇐-preserve (⊢-δ ⊢) (D-β-δ V) P₀ (D-β-δ V₁) = P₀ (⊢-δ ⊢)
 
 insert-preserve-> : ∀ {Γ x τᵥ i τᵢ}
   → (i > x)
@@ -188,13 +174,14 @@ applyₚ-preserve ⊢ᵥ (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (applyₚ-preserve ⊢ᵥ
   → e₁ —→ e₂
   → Γ ⊢ e₂ ∶ τ
 —→-preserve (⊢-· (⊢-ƛ ⊢ₗ) ⊢ᵣ) (T-β-· Vᵣ) = ·-preserve ⊢ᵣ ⊢ₗ
+—→-preserve (⊢-+ ⊢-# ⊢-#) T-β-+ = ⊢-#
 —→-preserve (⊢-φ ⊢ₚ ⊢ₑ) (T-β-φ V) = ⊢ₑ
 —→-preserve (⊢-δ ⊢ₑ) (T-β-δ V) = ⊢ₑ
 
-preserve : ∀ {Γ s e₁ e₂ τ}
+preserve : ∀ {Γ e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
-  → s ⊢ e₁ ⇥ e₂
+  → e₁ ⇥ e₂
   → Γ ⊢ e₂ ∶ τ
-preserve ⊢ (step D A T C) = ⇐-preserve (instr-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
-preserve ⊢ (skip D A T C S) = preserve (⇐-preserve (instr-preserve ⊢) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
+preserve ⊢ (step I D A T C) = ⇐-preserve (⇝-preserve ⊢ I) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
+preserve ⊢ (skip I D A T C S) = preserve (⇐-preserve (⇝-preserve ⊢ I) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
 preserve ⊢ (done V) = ⊢
