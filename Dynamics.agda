@@ -12,7 +12,7 @@ open import Relation.Binary using (tri<; tri>; tri≈)
 open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym; trans)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using (id; _on_)
-open import Data.Product using (_×_; _,_)
+open import Data.Product using (_×_; _,_; proj₁; proj₂)
 open import Relation.Binary using (Rel)
 open import Relation.Nullary using (¬_; yes; no)
 open import Induction using (RecStruct)
@@ -64,9 +64,8 @@ data _—→_ : Exp → Exp → Set where
     → (δ r v) —→ v
 
 data _* (_R_ : Exp → Exp → Set) : Exp → Exp → Set where
-  init : ∀ {e e′}
-    → e R e′
-    → (_R_ *) e e′
+  init : ∀ {e}
+    → (_R_ *) e e
 
   next : ∀ {e e′ e″}
     → e R e′
@@ -443,7 +442,7 @@ data _⇥_ : Exp → Exp → Set where
   step : ∀ {e eᵢ e′ e₀ e₀′ ε₀}
     → (I : e ⇝ eᵢ)
     → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : ¬ (e₀ filter) × ε₀ ⊣ ∥)
+    → (A : (¬ (e₀ filter)) × ε₀ ⊣ ∥)
     → (T : e₀ —→ e₀′)
     → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
     → e ⇥ e′
@@ -460,6 +459,16 @@ data _⇥_ : Exp → Exp → Set where
   done : ∀ {v}
     → (V : v value)
     → v ⇥ v
+
+data _↦_ : Exp → Exp → Set where
+  step : ∀ {e c e₀ e₀′ e′}
+    → (D : e ⇒ c ⟨ e₀ ⟩)
+    → (T : e₀ —→ e₀′)
+    → (C : e′ ⇒ c ⟨ e₀′ ⟩)
+    → e ↦ e′
+
+_↦*_ : Exp → Exp → Set
+_↦*_ = _↦_ *
 
 _⇥*_ : Exp → Exp → Set
 _⇥*_ = _⇥_ *
