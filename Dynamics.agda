@@ -141,19 +141,19 @@ data _⇐_ : Exp → Obj → Set where
   C-∘ : ∀ {e}
     → e ⇐ ∘ ⟨ e ⟩
 
-  C-·-l : ∀ {εₗ eᵣ eₗ e}
+  C-·ₗ : ∀ {εₗ eᵣ eₗ e}
     → eₗ ⇐ εₗ ⟨ e ⟩
     → (eₗ `· eᵣ) ⇐ (εₗ ·ₗ eᵣ) ⟨ e ⟩
 
-  C-·-r : ∀ {eₗ εᵣ eᵣ e}
+  C-·ᵣ : ∀ {eₗ εᵣ eᵣ e}
     → eᵣ ⇐ εᵣ ⟨ e ⟩
     → (eₗ `· eᵣ) ⇐ (eₗ ·ᵣ εᵣ) ⟨ e ⟩
 
-  C-+-l : ∀ {εₗ eᵣ eₗ e}
+  C-+ₗ : ∀ {εₗ eᵣ eₗ e}
     → eₗ ⇐ εₗ ⟨ e ⟩
     → (eₗ `+ eᵣ) ⇐ (εₗ +ₗ eᵣ) ⟨ e ⟩
 
-  C-+-r : ∀ {eₗ εᵣ eᵣ e}
+  C-+ᵣ : ∀ {eₗ εᵣ eᵣ e}
     → eᵣ ⇐ εᵣ ⟨ e ⟩
     → (eₗ `+ eᵣ) ⇐ (eₗ +ᵣ εᵣ) ⟨ e ⟩
 
@@ -177,10 +177,10 @@ compose (δ x c) e = δ x (compose c e)
 compose-⇐ : ∀ (c : Ctx) (e : Exp)
   → compose c e ⇐ c ⟨ e ⟩
 compose-⇐ ∘ e = C-∘
-compose-⇐ (c ·ₗ x) e = C-·-l (compose-⇐ c e)
-compose-⇐ (x ·ᵣ c) e = C-·-r (compose-⇐ c e)
-compose-⇐ (c +ₗ x) e = C-+-l (compose-⇐ c e)
-compose-⇐ (x +ᵣ c) e = C-+-r (compose-⇐ c e)
+compose-⇐ (c ·ₗ x) e = C-·ₗ (compose-⇐ c e)
+compose-⇐ (x ·ᵣ c) e = C-·ᵣ (compose-⇐ c e)
+compose-⇐ (c +ₗ x) e = C-+ₗ (compose-⇐ c e)
+compose-⇐ (x +ᵣ c) e = C-+ᵣ (compose-⇐ c e)
 compose-⇐ (φ x c) e = C-φ (compose-⇐ c e)
 compose-⇐ (δ x c) e = C-δ (compose-⇐ c e)
 
@@ -189,12 +189,7 @@ data _⊢_⇝_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → (V : v value)
     → (p , a , g , l) ⊢ v ⇝ v
 
-  I-`-⊤ : ∀ {p a g l x}
-    → (M : p matches (` x))
-    → (p , a , g , l) ⊢ (` x) ⇝ (δ (a , g , l) (` x))
-
-  I-`-⊥ : ∀ {p a g l x}
-    → (¬M : ¬ (p matches (` x)))
+  I-` : ∀ {p a g l x}
     → (p , a , g , l) ⊢ (` x) ⇝ (` x)
 
   I-·-⊤ : ∀ {p a g l eₗ eᵣ eₗ′ eᵣ′}
@@ -237,8 +232,7 @@ e ⇝ eᵢ = ($e , ∥ , 𝟙 , 0) ⊢ e ⇝ eᵢ
   → (p , a , g , l) ⊢ e ⇝ e′
   → (strip e) ≡ (strip e′)
 ⇝-strip (I-V V) = refl
-⇝-strip (I-`-⊤ M) = refl
-⇝-strip (I-`-⊥ M) = refl
+⇝-strip (I-`) = refl
 ⇝-strip (I-·-⊤ M Iₗ Iᵣ) rewrite ⇝-strip Iₗ rewrite ⇝-strip Iᵣ = refl
 ⇝-strip (I-·-⊥ M Iₗ Iᵣ) rewrite ⇝-strip Iₗ rewrite ⇝-strip Iᵣ = refl
 ⇝-strip (I-+-⊤ M Iₗ Iᵣ) rewrite ⇝-strip Iₗ rewrite ⇝-strip Iᵣ = refl
@@ -336,9 +330,7 @@ sm≤′sm+r {m} {suc r} = Data.Nat.≤′-step sm≤′sm+r
 <-φ-exp-+ᵣ {eₗ} {eᵣ} | suc φₗ = inj₁ sm≤′sm+r
 
 instr′ : (p : Pat) (a : Act) (g : Gas) (l : ℕ) (e : Exp) → Acc _<-φ-exp_ (e , e) → ∃[ e′ ](count-φ e ≡ count-φ e′ × (p , a , g , l) ⊢ e ⇝ e′)
-instr′ p a g l (` i) (Acc.acc rs) with (p matches? (` i))
-instr′ p a g l (` i) (Acc.acc rs) | yes M = δ (a , g , l) (` i) , refl , I-`-⊤ M
-instr′ p a g l (` i) (Acc.acc rs) | no ¬M = (` i) , refl , I-`-⊥ ¬M
+instr′ p a g l (` i) (Acc.acc rs) = (` i) , refl , I-`
 instr′ p a g l (ƛ e) (Acc.acc rs) = ƛ e , refl , I-V V-ƛ
 instr′ p a g l (eₗ `· eᵣ) (Acc.acc rs) with (p matches? (eₗ `· eᵣ)) with instr′ p a g l eₗ (rs <-φ-exp-·ₗ) with instr′ p a g l eᵣ (rs <-φ-exp-·ᵣ)
 instr′ p a g l (eₗ `· eᵣ) (Acc.acc rs) | yes M | eₗ′ , ≡ₗ , Iₗ | eᵣ′ , ≡ᵣ , Iᵣ rewrite ≡ₗ rewrite ≡ᵣ = (δ (a , g , l) (eₗ′ `· eᵣ′)) , refl , (I-·-⊤ M Iₗ Iᵣ)
@@ -367,16 +359,15 @@ instr p a g l e | e′ , ≡φ = e′
 ⇝-instr p a g l e with instr′ p a g l e (<-φ-exp-wellFounded (e , e))
 ⇝-instr p a g l e | e′ , ≡φ , I = I
 
--- decay ε
--- Decays 
 decay : Ctx → Ctx
 decay ∘ = ∘
 decay (ε ·ₗ e) = (decay ε) ·ₗ e
 decay (e ·ᵣ ε) = e ·ᵣ (decay ε)
 decay (ε +ₗ e) = (decay ε) +ₗ e
 decay (e +ᵣ ε) = e +ᵣ (decay ε)
-decay (φ f  ε) = decay ε
-decay (δ r  ε) = decay ε
+decay (φ f  ε) = φ f (decay ε)
+decay (δ (a , 𝟙 , l) ε) = (decay ε)
+decay (δ (a , ⋆ , l) ε) = δ (a , ⋆ , l) (decay ε)
 
 select : Act → ℕ → Ctx → Act
 select act lvl ∘ = act
@@ -438,33 +429,36 @@ c ⊣ a = (∥ , 0) ⊢ c ⊣ a
 ... | yes ≤ = (A-Δ-≤ ≤) ⊢⊣-select
 ... | no  ≰ = A-Δ-> (≰⇒> ≰) ⊢⊣-select
 
-data _⇥_ : Exp → Exp → Set where
-  step : ∀ {e eᵢ e′ e₀ e₀′ ε₀}
-    → (I : e ⇝ eᵢ)
+data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
+  step : ∀ {p a g l e eᵢ e′ e₀ e₀′ ε₀}
+    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
     → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : (¬ (e₀ filter)) × ε₀ ⊣ ∥)
+    → (A : (¬ (e₀ filter)) × (a , l) ⊢ ε₀ ⊣ ∥)
     → (T : e₀ —→ e₀′)
-    → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
-    → e ⇥ e′
+    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+    → (p , a , g , l) ⊢ e ⇥ e′
 
-  skip : ∀ {e eᵢ e′ e″ e₀ e₀′ ε₀}
+  skip : ∀ {p a g l e eᵢ e′ e″ e₀ e₀′ ε₀}
     → (I : e ⇝ eᵢ)
     → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
     → (A : e₀ filter ⊎ ε₀ ⊣ ⊳)
     → (T : e₀ —→ e₀′)
-    → (C : e′ ⇒ (decay ε₀) ⟨ e₀′ ⟩)
-    → (R : e′ ⇥ e″)
-    → e ⇥ e″
+    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+    → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
+    → (p ,  a ,  g ,  l) ⊢ e ⇥ e″
 
-  done : ∀ {v}
+  done : ∀ {p a g l v}
     → (V : v value)
-    → v ⇥ v
+    → (p , a , g , l) ⊢ v ⇥ v
+
+_⇥_ : Exp → Exp → Set
+e₀ ⇥ e₁ = ($e , ∥ , 𝟙 , 0) ⊢ e₀ ⇥ e₁
 
 data _↦_ : Exp → Exp → Set where
   step : ∀ {e c e₀ e₀′ e′}
     → (D : e ⇒ c ⟨ e₀ ⟩)
     → (T : e₀ —→ e₀′)
-    → (C : e′ ⇒ c ⟨ e₀′ ⟩)
+    → (C : e′ ⇐ c ⟨ e₀′ ⟩)
     → e ↦ e′
 
 _↦*_ : Exp → Exp → Set
@@ -472,3 +466,51 @@ _↦*_ = _↦_ *
 
 _⇥*_ : Exp → Exp → Set
 _⇥*_ = _⇥_ *
+
+↦*-cong-·ᵣ : ∀ {e₀ e₁ : Exp} (eᵣ : Exp)
+  → e₀ ↦* e₁
+  → (e₀ `· eᵣ) ↦* (e₁ `· eᵣ)
+↦*-cong-·ᵣ eᵣ init = init
+↦*-cong-·ᵣ eᵣ (next (step D T C) K) = next (step (D-ξ-·ₗ D) T (C-·ₗ C)) (↦*-cong-·ᵣ eᵣ K)
+
+↦*-cong-·ₗ : ∀ {e₀ e₁ eₗ : Exp}
+  → eₗ value
+  → e₀ ↦* e₁
+  → (eₗ `· e₀) ↦* (eₗ `· e₁)
+↦*-cong-·ₗ V init = init
+↦*-cong-·ₗ V (next (step D T C) K) = next (step (D-ξ-·ᵣ V D) T (C-·ᵣ C)) (↦*-cong-·ₗ V K)
+
+compose-∘ : ∀ {e o}
+  → e ⇒ ∘ ⟨ o ⟩
+  → e ≡ o
+compose-∘ (D-β-· Vₗ Vᵣ) = refl
+compose-∘ (D-β-+ Vₗ Vᵣ) = refl
+compose-∘ (D-β-φ V) = refl
+compose-∘ (D-β-δ V) = refl
+
+↑ₑ-strip : ∀ (c : ℕ) (d : ℕ) (e : Exp)
+  → ↑ₑ c d (strip e) ≡ strip (↑ₑ c d e)
+↑ₑ-strip c d (` i) = refl
+↑ₑ-strip c d (ƛ e) = cong ƛ_ (↑ₑ-strip (suc c) d e)
+↑ₑ-strip c d (eₗ `· eᵣ) = cong₂ _`·_ (↑ₑ-strip c d eₗ) (↑ₑ-strip c d eᵣ)
+↑ₑ-strip c d (# n) = refl
+↑ₑ-strip c d (eₗ `+ eᵣ) = cong₂ _`+_ (↑ₑ-strip c d eₗ) (↑ₑ-strip c d eᵣ)
+↑ₑ-strip c d (φ f e) = ↑ₑ-strip c d e
+↑ₑ-strip c d (δ r e) = ↑ₑ-strip c d e
+
+applyₙ-strip : ∀ (i x : ℕ) (v : Exp)
+  → applyₙ i x (strip v) ≡ strip (applyₙ i x v)
+applyₙ-strip i x v with <-cmp i x
+applyₙ-strip i x v | tri< a ¬b ¬c = refl
+applyₙ-strip i x v | tri≈ ¬a b ¬c = refl
+applyₙ-strip (suc i) x v | tri> ¬a ¬b (s≤s c) = refl
+
+applyₑ-strip : ∀ (e : Exp) (x : ℕ) (v : Exp)
+  → applyₑ (strip e) x (strip v) ≡ strip (applyₑ e x v)
+applyₑ-strip (` i) x v = applyₙ-strip i x v
+applyₑ-strip (ƛ e) x v rewrite ↑ₑ-strip 0 1 v = cong ƛ_ (applyₑ-strip e (suc x) (↑ₑ 0 1 v))
+applyₑ-strip (eₗ `· eᵣ) x v = cong₂ _`·_ (applyₑ-strip eₗ x v) (applyₑ-strip eᵣ x v)
+applyₑ-strip (# n) x v = refl
+applyₑ-strip (eₗ `+ eᵣ) x v = cong₂ _`+_ (applyₑ-strip eₗ x v) (applyₑ-strip eᵣ x v)
+applyₑ-strip (φ f e) x v = applyₑ-strip e x v
+applyₑ-strip (δ r e) x v = applyₑ-strip e x v

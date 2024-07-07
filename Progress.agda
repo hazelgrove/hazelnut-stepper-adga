@@ -132,13 +132,18 @@ value-⇜-value V-# (I-V V-#) = V-#
   → ∃[ e′ ](e′ ⇐ (decay c) ⟨ o′ ⟩)
 ⇐-progress′ {c = c} {o′ = o′} ⊢ D T = (compose (decay c) o′) , (compose-⇐ (decay c) o′)
 
-⇐-preserve′ : ∀ {Γ} {e e′ e₀ e₀′ : Exp} {τ} {ε : Dynamics.Ctx}
-  → Γ ⊢ e ∶ τ
-  → e ⇒ ε ⟨ e₀ ⟩
-  → e₀ —→ e₀′
-  → e′ ⇐ (decay ε) ⟨ e₀′ ⟩
-  → Γ ⊢ e′ ∶ τ
-⇐-preserve′ = {!!}
+↦-progress : ∀ {e : Exp} {τ : Typ}
+  → ∅ ⊢ e ∶ τ
+  → e value ⊎ ∃[ e′ ](e ↦ e′)
+↦-progress {ƛ e} (⊢-ƛ ⊢) = inj₁ V-ƛ
+↦-progress {eₗ `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) with (↦-progress ⊢ₗ) with (↦-progress ⊢ᵣ)
+↦-progress {(ƛ e) `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | inj₁ (V-ƛ {e}) | inj₁ V = inj₂ (applyₑ e 0 eᵣ , (step (D-β-· V-ƛ V) (T-β-· V) {!!}))
+... | inj₁ V-ƛ | inj₂ y = {!!}
+... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `· eᵣ , (step (D-ξ-·ₗ D) T (D-ξ-·ₗ C)))
+↦-progress {_ `+ _} (⊢-+ ⊢ₗ ⊢ᵣ) = {!!}
+↦-progress {# _} ⊢-# = inj₁ V-#
+↦-progress {φ (_ , _) _} (⊢-φ x ⊢) = {!!}
+↦-progress {δ _ _} (⊢-δ ⊢) = {!!}
 
 progress : ∀ {p a g l e τ}
   → ∅ ⊢[ e ]∶ τ

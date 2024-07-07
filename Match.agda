@@ -29,7 +29,7 @@ data _matches_ : Pat → Exp → Set where
     → v value
     → $v matches v
 
-  M-`· : ∀ {pₗ pᵣ eₗ eᵣ}
+  M-· : ∀ {pₗ pᵣ eₗ eᵣ}
     → pₗ matches eₗ
     → pᵣ matches eᵣ
     → (pₗ `· pᵣ) matches (eₗ `· eᵣ)
@@ -68,8 +68,8 @@ $v matches? δ r e = no λ { (M-V ()) }
 pₗ `· pᵣ matches? ` i = no (λ ())
 pₗ `· pᵣ matches? ƛ e = no (λ ())
 pₗ `· pᵣ matches? eₗ `· eᵣ with (pₗ matches? eₗ) ×-dec (pᵣ matches? eᵣ)
-(pₗ `· pᵣ) matches? (eₗ `· eᵣ) | yes (Mₗ , Mᵣ) = yes (M-`· Mₗ Mᵣ)
-pₗ `· pᵣ matches? eₗ `· eᵣ | no ¬M = no λ { (M-`· Mₗ Mᵣ) → ¬M (Mₗ , Mᵣ) }
+(pₗ `· pᵣ) matches? (eₗ `· eᵣ) | yes (Mₗ , Mᵣ) = yes (M-· Mₗ Mᵣ)
+pₗ `· pᵣ matches? eₗ `· eᵣ | no ¬M = no λ { (M-· Mₗ Mᵣ) → ¬M (Mₗ , Mᵣ) }
 pₗ `· pᵣ matches? (# n) = no (λ ())
 pₗ `· pᵣ matches? eₗ `+ eᵣ = no (λ ())
 pₗ `· pᵣ matches? φ f e = no (λ ())
