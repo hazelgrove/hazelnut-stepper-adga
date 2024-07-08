@@ -625,7 +625,7 @@ data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
   A-∘ : ∀ {act lvl}
     → (act , lvl) ⊢ ∘ ⊣ act
 
-  A-·-l : ∀ {act lvl εₗ eᵣ act′}
+  A-·ₗ : ∀ {act lvl εₗ eᵣ act′}
     → (act , lvl) ⊢ εₗ ⊣ act′
     → (act , lvl) ⊢ (εₗ ·ₗ eᵣ) ⊣ act′
 
@@ -658,7 +658,7 @@ data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
 ⊢⊣-select : ∀ {a l ε}
   → (a , l) ⊢ ε ⊣ (select a l ε)
 ⊢⊣-select {ε = ∘} = A-∘
-⊢⊣-select {ε = ε ·ₗ e} = A-·-l ⊢⊣-select
+⊢⊣-select {ε = ε ·ₗ e} = A-·ₗ ⊢⊣-select
 ⊢⊣-select {ε = e ·ᵣ ε} = A-·-r ⊢⊣-select
 ⊢⊣-select {ε = ε +ₗ e} = A-+-l ⊢⊣-select
 ⊢⊣-select {ε = e +ᵣ ε} = A-+-r ⊢⊣-select

@@ -157,13 +157,13 @@ data _⇐_ : Exp → Obj → Set where
     → eᵣ ⇐ εᵣ ⟨ e ⟩
     → (eₗ `+ eᵣ) ⇐ (eₗ +ᵣ εᵣ) ⟨ e ⟩
 
-  C-φ : ∀ {pag ε e e′}
+  C-φ : ∀ {f ε e e′}
     → e′ ⇐ ε ⟨ e ⟩
-    → (φ pag  e′) ⇐ (φ pag  ε) ⟨ e ⟩
+    → (φ f e′) ⇐ (φ f ε) ⟨ e ⟩
 
-  C-δ : ∀ {agl ε e e′}
+  C-δ : ∀ {r ε e e′}
     → e′ ⇐ ε ⟨ e ⟩
-    → (δ agl  e′) ⇐ (δ agl  ε) ⟨ e ⟩
+    → (δ r e′) ⇐ (δ r ε) ⟨ e ⟩
 
 compose : Ctx → Exp → Exp
 compose ∘ e = e
@@ -384,7 +384,7 @@ data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
   A-∘ : ∀ {act lvl}
     → (act , lvl) ⊢ ∘ ⊣ act
 
-  A-·-l : ∀ {act lvl εₗ eᵣ act′}
+  A-·ₗ : ∀ {act lvl εₗ eᵣ act′}
     → (act , lvl) ⊢ εₗ ⊣ act′
     → (act , lvl) ⊢ (εₗ ·ₗ eᵣ) ⊣ act′
 
@@ -420,7 +420,7 @@ c ⊣ a = (∥ , 0) ⊢ c ⊣ a
 ⊢⊣-select : ∀ {a l ε}
   → (a , l) ⊢ ε ⊣ (select a l ε)
 ⊢⊣-select {ε = ∘} = A-∘
-⊢⊣-select {ε = ε ·ₗ e} = A-·-l ⊢⊣-select
+⊢⊣-select {ε = ε ·ₗ e} = A-·ₗ ⊢⊣-select
 ⊢⊣-select {ε = e ·ᵣ ε} = A-·-r ⊢⊣-select
 ⊢⊣-select {ε = ε +ₗ e} = A-+-l ⊢⊣-select
 ⊢⊣-select {ε = e +ᵣ ε} = A-+-r ⊢⊣-select
@@ -439,9 +439,9 @@ data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → (p , a , g , l) ⊢ e ⇥ e′
 
   skip : ∀ {p a g l e eᵢ e′ e″ e₀ e₀′ ε₀}
-    → (I : e ⇝ eᵢ)
+    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
     → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : e₀ filter ⊎ ε₀ ⊣ ⊳)
+    → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
     → (T : e₀ —→ e₀′)
     → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
     → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
@@ -467,11 +467,11 @@ _↦*_ = _↦_ *
 _⇥*_ : Exp → Exp → Set
 _⇥*_ = _⇥_ *
 
-↦*-cong-·ᵣ : ∀ {e₀ e₁ : Exp} (eᵣ : Exp)
+↦*-cong-·ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
   → e₀ ↦* e₁
   → (e₀ `· eᵣ) ↦* (e₁ `· eᵣ)
-↦*-cong-·ᵣ eᵣ init = init
-↦*-cong-·ᵣ eᵣ (next (step D T C) K) = next (step (D-ξ-·ₗ D) T (C-·ₗ C)) (↦*-cong-·ᵣ eᵣ K)
+↦*-cong-·ᵣ init = init
+↦*-cong-·ᵣ (next (step D T C) K) = next (step (D-ξ-·ₗ D) T (C-·ₗ C)) (↦*-cong-·ᵣ K)
 
 ↦*-cong-·ₗ : ∀ {e₀ e₁ eₗ : Exp}
   → eₗ value
@@ -479,6 +479,19 @@ _⇥*_ = _⇥_ *
   → (eₗ `· e₀) ↦* (eₗ `· e₁)
 ↦*-cong-·ₗ V init = init
 ↦*-cong-·ₗ V (next (step D T C) K) = next (step (D-ξ-·ᵣ V D) T (C-·ᵣ C)) (↦*-cong-·ₗ V K)
+
+↦*-cong-+ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
+  → e₀ ↦* e₁
+  → (e₀ `+ eᵣ) ↦* (e₁ `+ eᵣ)
+↦*-cong-+ᵣ init = init
+↦*-cong-+ᵣ (next (step D T C) K) = next (step (D-ξ-+ₗ D) T (C-+ₗ C)) (↦*-cong-+ᵣ K)
+
+↦*-cong-+ₗ : ∀ {e₀ e₁ eₗ : Exp}
+  → eₗ value
+  → e₀ ↦* e₁
+  → (eₗ `+ e₀) ↦* (eₗ `+ e₁)
+↦*-cong-+ₗ V init = init
+↦*-cong-+ₗ V (next (step D T C) K) = next (step (D-ξ-+ᵣ V D) T (C-+ᵣ C)) (↦*-cong-+ₗ V K)
 
 compose-∘ : ∀ {e o}
   → e ⇒ ∘ ⟨ o ⟩
@@ -514,3 +527,37 @@ applyₑ-strip (# n) x v = refl
 applyₑ-strip (eₗ `+ eᵣ) x v = cong₂ _`+_ (applyₑ-strip eₗ x v) (applyₑ-strip eᵣ x v)
 applyₑ-strip (φ f e) x v = applyₑ-strip e x v
 applyₑ-strip (δ r e) x v = applyₑ-strip e x v
+
+stripₖ : Ctx → Ctx
+stripₖ ∘ = ∘
+stripₖ (c ·ₗ x) = (stripₖ c) ·ₗ (strip x)
+stripₖ (x ·ᵣ c) = (strip x) ·ᵣ (stripₖ c)
+stripₖ (c +ₗ x) = (stripₖ c) +ₗ (strip x)
+stripₖ (x +ᵣ c) = (strip x) +ᵣ (stripₖ c)
+stripₖ (φ x c) = stripₖ c
+stripₖ (δ x c) = stripₖ c
+
+strip-value : ∀ {v : Exp}
+  → v value
+  → strip v value
+strip-value V-ƛ = V-ƛ
+strip-value V-# = V-#
+
+-- →-strip : ∀ {e e′}
+--   → e —→ e′
+--   → (strip e) —→ (strip e′)
+-- →-strip (T-β-· {v = v} {e = e} V) rewrite sym (applyₑ-strip e 0 v) = T-β-· (strip-value V)
+-- →-strip T-β-+ = T-β-+
+-- →-strip (T-β-φ V) = {!!}
+-- →-strip (T-β-δ V) = {!!}
+
+⇐-strip : ∀ {e c o}
+  → e ⇐ c ⟨ o ⟩
+  → strip e ⇐ (stripₖ c) ⟨ strip o ⟩
+⇐-strip C-∘ = C-∘
+⇐-strip (C-·ₗ C) = C-·ₗ (⇐-strip C)
+⇐-strip (C-·ᵣ C) = C-·ᵣ (⇐-strip C)
+⇐-strip (C-+ₗ C) = C-+ₗ (⇐-strip C)
+⇐-strip (C-+ᵣ C) = C-+ᵣ (⇐-strip C)
+⇐-strip (C-φ C) = ⇐-strip C
+⇐-strip (C-δ C) = ⇐-strip C

@@ -93,7 +93,7 @@ R deterministic = ∀ {x} {y₁ y₂} → R x y₁ → R x y₂ → y₁ ≡ y�
 
 ⊢⊣-deterministic : ∀ {a l} → ((a , l) ⊢_⊣_) deterministic
 ⊢⊣-deterministic A-∘ A-∘ = refl
-⊢⊣-deterministic (A-·-l ⊣₁) (A-·-l ⊣₂) = ⊢⊣-deterministic ⊣₁ ⊣₂
+⊢⊣-deterministic (A-·ₗ ⊣₁) (A-·ₗ ⊣₂) = ⊢⊣-deterministic ⊣₁ ⊣₂
 ⊢⊣-deterministic (A-·-r ⊣₁) (A-·-r ⊣₂) = ⊢⊣-deterministic ⊣₁ ⊣₂
 ⊢⊣-deterministic (A-+-l ⊣₁) (A-+-l ⊣₂) = ⊢⊣-deterministic ⊣₁ ⊣₂
 ⊢⊣-deterministic (A-+-r ⊣₁) (A-+-r ⊣₂) = ⊢⊣-deterministic ⊣₁ ⊣₂
