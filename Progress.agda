@@ -5,7 +5,7 @@ open import Match
 open import Statics
 open import Dynamics
 open import Preservation
-open import Data.Nat using (ℕ)
+open import Data.Nat using (ℕ; _+_)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Product using (_×_; _,_; ∃; ∃-syntax)
 open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
@@ -67,8 +67,7 @@ value-⇝-value V-# (I-V V-#) = V-#
   → (p , a , g , l) ⊢ v ⇝ v′
   → ¬ (v′ value)
 ¬value-⇝-¬value ¬V (I-V V) = λ V → ¬V V
-¬value-⇝-¬value ¬V (I-`-⊤ _) ()
-¬value-⇝-¬value ¬V (I-`-⊥ _) ()
+¬value-⇝-¬value ¬V (I-`) ()
 ¬value-⇝-¬value ¬V (I-·-⊤ _ _ _) ()
 ¬value-⇝-¬value ¬V (I-·-⊥ _ _ _) ()
 ¬value-⇝-¬value ¬V (I-+-⊤ _ _ _) ()
@@ -136,16 +135,25 @@ value-⇜-value V-# (I-V V-#) = V-#
   → ∅ ⊢ e ∶ τ
   → e value ⊎ ∃[ e′ ](e ↦ e′)
 ↦-progress {ƛ e} (⊢-ƛ ⊢) = inj₁ V-ƛ
-↦-progress {eₗ `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) with (↦-progress ⊢ₗ) with (↦-progress ⊢ᵣ)
-↦-progress {(ƛ e) `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ) | inj₁ (V-ƛ {e}) | inj₁ V = inj₂ (applyₑ e 0 eᵣ , (step (D-β-· V-ƛ V) (T-β-· V) {!!}))
-... | inj₁ V-ƛ | inj₂ y = {!!}
-... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `· eᵣ , (step (D-ξ-·ₗ D) T (D-ξ-·ₗ C)))
-↦-progress {_ `+ _} (⊢-+ ⊢ₗ ⊢ᵣ) = {!!}
+↦-progress {eₗ `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ)
+    with (↦-progress ⊢ₗ)     with (↦-progress ⊢ᵣ)
+... | inj₁ (V-ƛ {e})          | inj₁ V = inj₂ (applyₑ e 0 eᵣ , (step (D-β-· V-ƛ V) (T-β-· V) C-∘))
+... | inj₁ V-ƛ                | inj₂ (eᵣ′ , step D T C) = inj₂ ((eₗ `· eᵣ′) , (step (D-ξ-·ᵣ V-ƛ D) T (C-·ᵣ C)))
+... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `· eᵣ , (step (D-ξ-·ₗ D) T (C-·ₗ C)))
+↦-progress {eₗ `+ eᵣ} (⊢-+ ⊢ₗ ⊢ᵣ)
+    with (↦-progress ⊢ₗ)     with (↦-progress ⊢ᵣ)
+... | inj₁ (V-# {nₗ})         | inj₁ (V-# {nᵣ}) = inj₂ ((# (nₗ + nᵣ)) , (step (D-β-+ V-# V-#) (T-β-+) C-∘))
+... | inj₁ V-#                | inj₂ (eᵣ′ , step D T C) = inj₂ ((eₗ `+ eᵣ′) , (step (D-ξ-+ᵣ V-# D) T (C-+ᵣ C)))
+... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `+ eᵣ , (step (D-ξ-+ₗ D) T (C-+ₗ C)))
 ↦-progress {# _} ⊢-# = inj₁ V-#
-↦-progress {φ (_ , _) _} (⊢-φ x ⊢) = {!!}
-↦-progress {δ _ _} (⊢-δ ⊢) = {!!}
+↦-progress {φ f e} (⊢-φ x ⊢) with (↦-progress ⊢)
+... | inj₁ V = inj₂ (e , (step (D-β-φ V) (T-β-φ V) C-∘))
+... | inj₂ (e′ , step D T C) = inj₂ (φ f e′ , step (D-ξ-φ D) T (C-φ C))
+↦-progress {δ r e} (⊢-δ ⊢) with (↦-progress ⊢)
+... | inj₁ V = inj₂ (e , (step (D-β-δ V) (T-β-δ V) C-∘))
+... | inj₂ (e′ , step D T C) = inj₂ (δ r e′ , step (D-ξ-δ D) T (C-δ C))
 
-progress : ∀ {p a g l e τ}
-  → ∅ ⊢[ e ]∶ τ
-  → ∃[ e′ ]((p , a , g , l) ⊢ e ⇥′ e′)
-progress {p} {a} {g} {l} {e} ⊢ = {!!}
+-- progress : ∀ {p a g l e τ}
+--   → ∅ ⊢[ e ]∶ τ
+--   → ∃[ e′ ]((p , a , g , l) ⊢ e ⇥′ e′)
+-- progress {p} {a} {g} {l} {e} ⊢ = {!!}
