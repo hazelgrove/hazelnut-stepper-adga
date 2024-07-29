@@ -644,25 +644,21 @@ m≤′m+n : ∀ {m n} → m ≤′ m + n
 m≤′m+n {m} {zero} rewrite +-comm m 0 = ≤′-refl
 m≤′m+n {m} {suc n} rewrite +-comm m (suc n) rewrite +-comm n m = ≤′-step m≤′m+n
 
-≤′-cong : ∀ {m n} → m ≤′ n → (suc m) ≤′ (suc n)
-≤′-cong {m} {.m} ≤′-refl = ≤′-refl
-≤′-cong {m} {.(suc _)} (≤′-step m≤′n) = ≤′-step (≤′-cong m≤′n)
-
 <-#-·ₗ : ∀ {eₗ} {eᵣ} → eₗ <-# (eₗ `· eᵣ)
 <-#-·ₗ {eₗ} {eᵣ} with length eₗ with length eᵣ
-<-#-·ₗ {eₗ} {eᵣ} | nₗ | nᵣ = ≤′-cong m≤′m+n
+<-#-·ₗ {eₗ} {eᵣ} | nₗ | nᵣ = s≤′s m≤′m+n
 
 <-#-·ᵣ : ∀ {eₗ} {eᵣ} → eᵣ <-# (eₗ `· eᵣ)
 <-#-·ᵣ {eₗ} {eᵣ} with length eₗ with length eᵣ
-<-#-·ᵣ {eₗ} {eᵣ} | nₗ | nᵣ rewrite +-comm nₗ nᵣ = ≤′-cong m≤′m+n
+<-#-·ᵣ {eₗ} {eᵣ} | nₗ | nᵣ rewrite +-comm nₗ nᵣ = s≤′s m≤′m+n
 
 <-#-+ₗ : ∀ {eₗ} {eᵣ} → eₗ <-# (eₗ `+ eᵣ)
 <-#-+ₗ {eₗ} {eᵣ} with length eₗ with length eᵣ
-<-#-+ₗ {eₗ} {eᵣ} | nₗ | nᵣ = ≤′-cong m≤′m+n
+<-#-+ₗ {eₗ} {eᵣ} | nₗ | nᵣ = s≤′s m≤′m+n
 
 <-#-+ᵣ : ∀ {eₗ} {eᵣ} → eᵣ <-# (eₗ `+ eᵣ)
 <-#-+ᵣ {eₗ} {eᵣ} with length eₗ with length eᵣ
-<-#-+ᵣ {eₗ} {eᵣ} | nₗ | nᵣ rewrite +-comm nₗ nᵣ = ≤′-cong m≤′m+n
+<-#-+ᵣ {eₗ} {eᵣ} | nₗ | nᵣ rewrite +-comm nₗ nᵣ = s≤′s m≤′m+n
 
 optimize′ : (e : Exp) → Acc _<-#_ e → Exp
 optimize′ (` i) (Acc.acc rs) = ` i
