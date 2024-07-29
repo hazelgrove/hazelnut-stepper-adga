@@ -6,7 +6,7 @@ open import Match
 open import Data.Integer using (+_)
 open import Data.Nat using (ℕ; _≤?_; _>_; _≤_; zero; suc; <-cmp; pred; s≤s; _<′_; _+_; _≤′_; ≤′-step; ≤′-refl)
 open import Data.Nat.Induction using (<′-wellFounded)
-open import Data.Nat.Properties using (≰⇒>; _>?_; +-comm)
+open import Data.Nat.Properties using (≰⇒>; _>?_; +-comm; s≤′s)
 open import Data.Product using (∃-syntax)
 open import Relation.Binary using (tri<; tri>; tri≈)
 open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym; trans)
@@ -55,7 +55,7 @@ data _—→_ : Exp → Exp → Set where
     → (ƛ e) `· v —→ applyₑ e 0 v
 
   T-β-+ : ∀ {nₗ nᵣ : ℕ}
-    → (# nₗ) `+ (# nᵣ) —→ # (nₗ Data.Nat.+ nᵣ)
+    → (# nₗ) `+ (# nᵣ) —→ # (nₗ + nᵣ)
 
   T-β-φ : ∀ {f v}
     → (V : v value)
@@ -257,22 +257,23 @@ e ⇝ eᵢ = ($e , ∥ , 𝟙 , 0) ⊢ e ⇝ eᵢ
 count-φ : Exp → ℕ
 count-φ (` i) = 0
 count-φ (ƛ e) = count-φ e
-count-φ (eₗ `· eᵣ) = count-φ eₗ Data.Nat.+ count-φ eᵣ
+count-φ (eₗ `· eᵣ) = count-φ eₗ + count-φ eᵣ
 count-φ (# n) = 0
-count-φ (eₗ `+ eᵣ) = count-φ eₗ Data.Nat.+ count-φ eᵣ
+count-φ (eₗ `+ eᵣ) = count-φ eₗ + count-φ eᵣ
 count-φ (φ f e) = suc (count-φ e)
 count-φ (δ r e) = count-φ e
 count-φ (μ e) = count-φ e
 
-length : Exp → ℕ
-length (` i) = 1
-length (ƛ e) = suc (length e)
-length (eₗ `· eᵣ) = suc ((length eₗ) + (length eᵣ))
-length (# n) = 1
-length (eₗ `+ eᵣ) = suc ((length eₗ) + (length eᵣ))
-length (φ f e) = suc (length e)
-length (δ r e) = suc (length e)
-length (μ e) = suc (length e)
+private
+  length : Exp → ℕ
+  length (` i) = 1
+  length (ƛ e) = suc (length e)
+  length (eₗ `· eᵣ) = suc ((length eₗ) + (length eᵣ))
+  length (# n) = 1
+  length (eₗ `+ eᵣ) = suc ((length eₗ) + (length eᵣ))
+  length (φ f e) = suc (length e)
+  length (δ r e) = suc (length e)
+  length (μ e) = suc (length e)
 
 _<-#_ : Rel (Exp) _
 _<-#_ = _<′_ on length
@@ -281,7 +282,7 @@ _<-#_ = _<′_ on length
 <-#-wellFounded = wellFounded length <′-wellFounded
 
 _<-#φ_ : Rel (Exp) _
-_<-#φ_ = Data.Nat._<′_ on count-φ
+_<-#φ_ = _<′_ on count-φ
 
 <-#φ-wellFounded : WellFounded _<-#φ_
 <-#φ-wellFounded = wellFounded count-φ <′-wellFounded
@@ -333,24 +334,24 @@ _<-#φ-exp_ = ×-Lex (Eq._≡_ on count-φ) _<-#φ_ _<-exp_
 
 <-#φ-respects-≡φ : _<-#φ_ Relation.Binary.Respectsʳ (_≡_ on count-φ)
 <-#φ-respects-≡φ {x = x} {y} {z} ≡φ <φ with count-φ y with count-φ z
-... | φy | φz = subst ((suc (count-φ x)) Data.Nat.≤′_) ≡φ <φ
+... | φy | φz = subst ((suc (count-φ x)) ≤′_) ≡φ <φ
 
 <-#φ-exp-wellFounded : WellFounded _<-#φ-exp_
-<-#φ-exp-wellFounded = ×-wellFounded' Eq.trans (λ { {x = x} {y} {z} ≡φ <φ → subst ((suc (count-φ x)) Data.Nat.≤′_) ≡φ <φ }) <-#φ-wellFounded <-exp-wellFounded
+<-#φ-exp-wellFounded = ×-wellFounded' Eq.trans (λ { {x = x} {y} {z} ≡φ <φ → subst ((suc (count-φ x)) ≤′_) ≡φ <φ }) <-#φ-wellFounded <-exp-wellFounded
 
 open Induction.WellFounded.All (<-#φ-wellFounded) renaming (wfRec to <-#φ-rec)
 
-sm≤′m+sr : ∀ {m r} → suc m Data.Nat.≤′ (m + suc r)
-sm≤′m+sr {m} {zero} rewrite Data.Nat.Properties.+-comm m 1 = Data.Nat.≤′-refl
-sm≤′m+sr {m} {suc r} rewrite Data.Nat.Properties.+-comm m (suc (suc r)) rewrite Data.Nat.Properties.+-comm (suc r) m = Data.Nat.≤′-step sm≤′m+sr
+sm≤′m+sr : ∀ {m r} → suc m ≤′ (m + suc r)
+sm≤′m+sr {m} {zero} rewrite +-comm m 1 = ≤′-refl
+sm≤′m+sr {m} {suc r} rewrite +-comm m (suc (suc r)) rewrite +-comm (suc r) m = ≤′-step sm≤′m+sr
 
-sm≤′sm+r : ∀ {m r} → suc m Data.Nat.≤′ (suc r) + m
-sm≤′sm+r {m} {zero} = Data.Nat.Properties.s≤′s Data.Nat.≤′-refl
-sm≤′sm+r {m} {suc r} = Data.Nat.≤′-step sm≤′sm+r
+sm≤′sm+r : ∀ {m r} → suc m ≤′ (suc r) + m
+sm≤′sm+r {m} {zero} = s≤′s ≤′-refl
+sm≤′sm+r {m} {suc r} = ≤′-step sm≤′sm+r
 
 <-#φ-exp-·ₗ : ∀ {eₗ} {eᵣ} → (eₗ , eₗ) <-#φ-exp (eₗ `· eᵣ , eₗ `· eᵣ)
 <-#φ-exp-·ₗ {eₗ} {eᵣ} with count-φ eᵣ
-<-#φ-exp-·ₗ {eₗ} {eᵣ} | zero = inj₂ (Data.Nat.Properties.+-comm 0 (count-φ eₗ) , <-·ₗ)
+<-#φ-exp-·ₗ {eₗ} {eᵣ} | zero = inj₂ (+-comm 0 (count-φ eₗ) , <-·ₗ)
 <-#φ-exp-·ₗ {eₗ} {eᵣ} | suc φᵣ = inj₁ sm≤′m+sr
 
 <-#φ-exp-·ᵣ : ∀ {eₗ} {eᵣ} → (eᵣ , eᵣ) <-#φ-exp (eₗ `· eᵣ , eₗ `· eᵣ)
@@ -360,7 +361,7 @@ sm≤′sm+r {m} {suc r} = Data.Nat.≤′-step sm≤′sm+r
 
 <-#φ-exp-+ₗ : ∀ {eₗ} {eᵣ} → (eₗ , eₗ) <-#φ-exp (eₗ `+ eᵣ , eₗ `+ eᵣ)
 <-#φ-exp-+ₗ {eₗ} {eᵣ} with count-φ eᵣ
-<-#φ-exp-+ₗ {eₗ} {eᵣ} | zero = inj₂ (Data.Nat.Properties.+-comm 0 (count-φ eₗ) , <-+ₗ)
+<-#φ-exp-+ₗ {eₗ} {eᵣ} | zero = inj₂ (+-comm 0 (count-φ eₗ) , <-+ₗ)
 <-#φ-exp-+ₗ {eₗ} {eᵣ} | suc φᵣ = inj₁ sm≤′m+sr
 
 <-#φ-exp-+ᵣ : ∀ {eₗ} {eᵣ} → (eᵣ , eᵣ) <-#φ-exp (eₗ `+ eᵣ , eₗ `+ eᵣ)
@@ -381,14 +382,14 @@ instr′ p a g l (# n) (Acc.acc rs) = # n , refl , I-V V-#
 instr′ p a g l (eₗ `+ eᵣ) (Acc.acc rs) with (p matches? (eₗ `+ eᵣ)) with instr′ p a g l eₗ (rs <-#φ-exp-+ₗ) with instr′ p a g l eᵣ (rs <-#φ-exp-+ᵣ)
 instr′ p a g l (eₗ `+ eᵣ) (Acc.acc rs) | yes M | eₗ′ , ≡ₗ , Iₗ | eᵣ′ , ≡ᵣ , Iᵣ rewrite ≡ₗ rewrite ≡ᵣ = (δ (a , g , l) (eₗ′ `+ eᵣ′)) , refl , I-+-⊤ M Iₗ Iᵣ
 instr′ p a g l (eₗ `+ eᵣ) (Acc.acc rs) | no ¬M | eₗ′ , ≡ₗ , Iₗ | eᵣ′ , ≡ᵣ , Iᵣ  rewrite ≡ₗ rewrite ≡ᵣ = eₗ′ `+ eᵣ′ , refl , I-+-⊥ ¬M Iₗ Iᵣ
-instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) with instr′ p a g l e (rs (inj₁ Data.Nat.≤′-refl))
-instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , I′ with instr′ p₀ a₀ g₀ (Data.Nat.ℕ.suc l) e′ (rs (inj₁ (<-#φ-subst {e} {e′} {(p₀ , a₀ , g₀)} e≡φe′)))
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) with instr′ p a g l e (rs (inj₁ ≤′-refl))
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , I′ with instr′ p₀ a₀ g₀ (suc l) e′ (rs (inj₁ (<-#φ-subst {e} {e′} {(p₀ , a₀ , g₀)} e≡φe′)))
   where
     <-#φ-subst : ∀ {e e′ f}
       → count-φ e ≡ count-φ e′
       → e′ <-#φ φ f e
-    <-#φ-subst {e = e} {f = f} e≡φe′ = subst (_<′ Data.Nat.ℕ.suc (count-φ e)) e≡φe′ Data.Nat.≤′-refl
-instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , I′ | e″ , e′≡φe″ , I″ = (φ (p₀ , a₀ , g₀) e″) , cong Data.Nat.ℕ.suc (trans e≡φe′ e′≡φe″) , I-φ I′ I″
+    <-#φ-subst {e = e} {f = f} e≡φe′ = subst (_<′ suc (count-φ e)) e≡φe′ ≤′-refl
+instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , I′ | e″ , e′≡φe″ , I″ = (φ (p₀ , a₀ , g₀) e″) , cong suc (trans e≡φe′ e′≡φe″) , I-φ I′ I″
 instr′ p a g l (δ r e) (Acc.acc rs) with instr′ p a g l e (rs (inj₂ (refl , <-δ)))
 instr′ p a g l (δ r e) (Acc.acc rs) | e′ , e≡e′ , I′ = δ r e′ , e≡e′ , I-δ I′
 instr′ p a g l (μ e) (Acc.acc rs) with (p matches? (μ e)) with instr′ p a g l e (rs <-#φ-exp-μ)
