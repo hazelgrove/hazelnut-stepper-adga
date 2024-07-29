@@ -36,6 +36,7 @@ open import Data.Fin using (Fin)
 ↑ₑ c d (eₗ `+ eᵣ) = ↑ₑ c d eₗ `+ ↑ₑ c d eᵣ
 ↑ₑ c d (φ f e)   = φ (↑ₚ c d (proj₁ f) , (proj₂ f)) (↑ₑ c d e)
 ↑ₑ c d (δ r e)   = δ r (↑ₑ c d e)
+↑ₑ c d (μ e)     = μ ↑ₑ (suc c) d e
 
 ↑ₑ-cascade {c} {d} {` x}     = cong `_ (↑ₙ-cascade {c} {d} {x})
 ↑ₑ-cascade {c} {d} {ƛ e}     = cong ƛ_ ↑ₑ-cascade
@@ -44,6 +45,7 @@ open import Data.Fin using (Fin)
 ↑ₑ-cascade {c} {d} {eₗ `+ eᵣ} = cong₂ _`+_ ↑ₑ-cascade ↑ₑ-cascade
 ↑ₑ-cascade {c} {d} {φ f e}   = cong₂ (λ p → φ (p , proj₂ f)) ↑ₚ-cascade ↑ₑ-cascade
 ↑ₑ-cascade {c} {d} {δ r e}   = cong (δ r) ↑ₑ-cascade
+↑ₑ-cascade {c} {d} {μ e} = cong μ_ ↑ₑ-cascade
 
 ↑ₚ c d $e        = $e
 ↑ₚ c d $v        = $v
@@ -52,6 +54,7 @@ open import Data.Fin using (Fin)
 ↑ₚ c d (pₗ `· pᵣ) = ↑ₚ c d pₗ `· ↑ₚ c d pᵣ
 ↑ₚ c d (# n)     = # n
 ↑ₚ c d (pₗ `+ pᵣ) = ↑ₚ c d pₗ `+ ↑ₚ c d pᵣ
+↑ₚ c d (μ e)      = μ ↑ₑ (suc c) d e
 
 ↑ₚ-cascade {c} {d} {$e} = refl
 ↑ₚ-cascade {c} {d} {$v} = refl
@@ -60,6 +63,7 @@ open import Data.Fin using (Fin)
 ↑ₚ-cascade {c} {d} {p `· p₁} = cong₂ _`·_ ↑ₚ-cascade ↑ₚ-cascade
 ↑ₚ-cascade {c} {d} {# n} = refl
 ↑ₚ-cascade {c} {d} {p `+ p₁} = cong₂ _`+_ ↑ₚ-cascade ↑ₚ-cascade
+↑ₚ-cascade {c} {d} {μ e} = cong μ_ ↑ₑ-cascade
 
 ↓ₙ : (c : ℕ) → (d : ℕ) → (x : ℕ) → ℕ
 ↓ₙ zero zero zero = zero
@@ -81,6 +85,7 @@ open import Data.Fin using (Fin)
 ↓ₑ c d (eₗ `+ eᵣ) = (↓ₑ c d eₗ) `+ (↓ₑ c d eᵣ)
 ↓ₑ c d (φ f e)   = φ (↓ₚ c d (proj₁ f) , proj₂ f) (↓ₑ c d e)
 ↓ₑ c d (δ r e)   = δ r (↓ₑ c d e)
+↓ₑ c d (μ e)     = μ (↓ₑ c d e)
 
 ↓ₚ c d $e        = $e
 ↓ₚ c d $v        = $v
@@ -91,6 +96,7 @@ open import Data.Fin using (Fin)
 ↓ₚ c d (pₗ `· pᵣ) = ↓ₚ c d pₗ `· ↓ₚ c d pᵣ
 ↓ₚ c d (# n)     = # n
 ↓ₚ c d (pₗ `+ pᵣ) = ↓ₚ c d pₗ `+ ↓ₚ c d pᵣ
+↓ₚ c d (μ e)      = μ ↓ₑ (suc c) d e
 
 patternize : Exp → Pat
 patternize (` i)   = ` i
@@ -101,6 +107,7 @@ patternize (# n)   = # n
 patternize (l `+ r) = patternize l `+ patternize r
 patternize (φ f e) = patternize e
 patternize (δ r e) = patternize e
+patternize (μ e)   = μ e
 
 [_/_]ₑ_ : Exp → ℕ → Exp → Exp
 [_/_]ₚ_ : Exp → ℕ → Pat → Pat
@@ -114,6 +121,7 @@ patternize (δ r e) = patternize e
 [_/_]ₑ_ v y (l `+ r) = ([_/_]ₑ_ v y l) `+ ([_/_]ₑ_ v y r)
 [_/_]ₑ_ v y (φ f e) = φ ([_/_]ₚ_ v y (proj₁ f) , proj₂ f) ([_/_]ₑ_ v y e)
 [_/_]ₑ_ v y (δ r e) = δ r ([_/_]ₑ_ v y e)
+[_/_]ₑ_ v y (μ e) = μ ([_/_]ₑ_ (↑ₑ 0 1 v) (suc y) e)
 
 [_/_]ₚ_ v y $e      = $e
 [_/_]ₚ_ v y $v      = $v
@@ -124,3 +132,4 @@ patternize (δ r e) = patternize e
 [_/_]ₚ_ v y (l `· r) = ([_/_]ₚ_ v y l) `· ([_/_]ₚ_ v y r)
 [_/_]ₚ_ v y (# n)   = # n
 [_/_]ₚ_ v y (l `+ r) = ([_/_]ₚ_ v y l) `+ ([_/_]ₚ_ v y r)
+[_/_]ₚ_ v y (μ e)   = μ ([_/_]ₑ_ (↑ₑ 0 1 v) (suc y) e)

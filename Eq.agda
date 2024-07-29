@@ -41,6 +41,7 @@ module Eq where
   (` x) ≟-exp (l `+ r) = no (λ ())
   (` x) ≟-exp φ f e = no (λ ())
   (` x) ≟-exp δ r e = no (λ ())
+  (` x) ≟-exp (μ e) = no λ ()
   (ƛ e) ≟-exp (` x) = no (λ ())
   (ƛ l) ≟-exp (ƛ r) with l ≟-exp r
   (ƛ l) ≟-exp (ƛ r) | yes refl = yes refl
@@ -50,6 +51,7 @@ module Eq where
   (ƛ e) ≟-exp (l `+ r) = no (λ ())
   (ƛ _) ≟-exp φ f e = no (λ ())
   (ƛ _) ≟-exp δ r e = no (λ ())
+  (ƛ _) ≟-exp (μ _) = no λ ()
   (lₗ `· lᵣ) ≟-exp (` x) = no (λ ())
   (lₗ `· lᵣ) ≟-exp (ƛ e) = no (λ ())
   (lₗ `· lᵣ) ≟-exp (rₗ `· rᵣ) with (lₗ ≟-exp rₗ) ×-dec (lᵣ ≟-exp rᵣ)
@@ -59,6 +61,7 @@ module Eq where
   (lₗ `· lᵣ) ≟-exp (rₗ `+ rᵣ) = no (λ ())
   (lₗ `· lᵣ) ≟-exp φ f e = no (λ ())
   (lₗ `· lᵣ) ≟-exp δ r e = no (λ ())
+  (lₗ `· lᵣ) ≟-exp (μ e) = no λ ()
   (# n) ≟-exp (` x) = no (λ ())
   (# n) ≟-exp (ƛ r) = no (λ ())
   (# n) ≟-exp (r `· r₁) = no (λ ())
@@ -66,8 +69,9 @@ module Eq where
   (# n) ≟-exp (# m) | yes refl = yes refl
   (# n) ≟-exp (# m) | no n≢m = no λ { refl → n≢m refl }
   (# n) ≟-exp (r `+ r₁) = no (λ ())
-  (# n) ≟-exp φ f r = no (λ ())
-  (# n) ≟-exp δ r r₁ = no (λ ())
+  (# n) ≟-exp φ f e = no (λ ())
+  (# n) ≟-exp δ r e = no (λ ())
+  (# n) ≟-exp (μ e) = no (λ ())
   (lₗ `+ lᵣ) ≟-exp (` x) = no (λ ())
   (lₗ `+ lᵣ) ≟-exp (ƛ e) = no (λ ())
   (lₗ `+ lᵣ) ≟-exp (rₗ `· rᵣ) = no (λ ())
@@ -77,6 +81,7 @@ module Eq where
   (lₗ `+ lᵣ) ≟-exp (rₗ `+ rᵣ) | no l≢r = no λ { refl → l≢r (refl , refl) }
   (lₗ `+ lᵣ) ≟-exp φ f e = no (λ ())
   (lₗ `+ lᵣ) ≟-exp δ r e = no (λ ())
+  (lₗ `+ lᵣ) ≟-exp (μ e) = no (λ ())
   φ f l ≟-exp (` x) = no (λ ())
   φ f l ≟-exp (ƛ r) = no (λ ())
   φ f l ≟-exp (r `· r₁) = no (λ ())
@@ -86,6 +91,7 @@ module Eq where
   φ fₗ eₗ ≟-exp φ fₗ eₗ | yes (refl , refl) = yes refl
   φ fₗ eₗ ≟-exp φ fᵣ eᵣ | no l≢r = no λ { refl → l≢r (refl , refl) }
   φ f l ≟-exp δ r r₁ = no (λ ())
+  φ f l ≟-exp (μ e) = no (λ ())
   δ r eₗ ≟-exp (` x) = no (λ ())
   δ r eₗ ≟-exp (ƛ eᵣ) = no (λ ())
   δ r eₗ ≟-exp (eᵣ `· eᵣ₁) = no (λ ())
@@ -95,6 +101,17 @@ module Eq where
   δ rₗ eₗ ≟-exp δ rᵣ eᵣ with (rₗ ≟-residue rᵣ) ×-dec (eₗ ≟-exp eᵣ)
   δ rₗ eₗ ≟-exp δ rᵣ eᵣ | yes (refl , refl) = yes refl
   δ rₗ eₗ ≟-exp δ rᵣ eᵣ | no l≢r = no (λ { refl → l≢r (refl , refl) })
+  δ r eₗ ≟-exp (μ e) = no (λ ())
+  (μ eₗ) ≟-exp (` i) = no (λ ())
+  (μ eₗ) ≟-exp (ƛ eᵣ) = no (λ ())
+  (μ eₗ) ≟-exp (eᵣ `· eᵣ₁) = no (λ ())
+  (μ eₗ) ≟-exp (# n) = no (λ ())
+  (μ eₗ) ≟-exp (eᵣ `+ eᵣ₁) = no (λ ())
+  (μ eₗ) ≟-exp φ f eᵣ = no (λ ())
+  (μ eₗ) ≟-exp δ r eᵣ = no (λ ())
+  (μ eₗ) ≟-exp (μ eᵣ) with eₗ ≟-exp eᵣ
+  (μ eₗ) ≟-exp (μ eᵣ) | yes refl = yes refl
+  (μ eₗ) ≟-exp (μ eᵣ) | no eₗ≢eᵣ = no λ { refl → eₗ≢eᵣ refl }
 
   $e ≟-pat $e = yes refl
   $e ≟-pat $v = no (λ ())
@@ -103,6 +120,7 @@ module Eq where
   $e ≟-pat (pᵣ `· pᵣ₁) = no (λ ())
   $e ≟-pat (# n) = no (λ ())
   $e ≟-pat (pᵣ `+ pᵣ₁) = no (λ ())
+  $e ≟-pat (μ e) = no λ ()
   $v ≟-pat $e = no (λ ())
   $v ≟-pat $v = yes refl
   $v ≟-pat (` x) = no (λ ())
@@ -110,6 +128,7 @@ module Eq where
   $v ≟-pat (pᵣ `· pᵣ₁) = no (λ ())
   $v ≟-pat (# n) = no (λ ())
   $v ≟-pat (pᵣ `+ pᵣ₁) = no (λ ())
+  $v ≟-pat (μ e) = no (λ ())
   (` x) ≟-pat $e = no (λ ())
   (` x) ≟-pat $v = no (λ ())
   (` x) ≟-pat (` y) with x ≟-nat y
@@ -119,6 +138,7 @@ module Eq where
   (` x) ≟-pat (pᵣ `· pᵣ₁) = no (λ ())
   (` x) ≟-pat (# n) = no (λ ())
   (` x) ≟-pat (pᵣ `+ pᵣ₁) = no (λ ())
+  (` x) ≟-pat (μ e) = no (λ ())
   (ƛ e) ≟-pat $e = no (λ ())
   (ƛ e) ≟-pat $v = no (λ ())
   (ƛ e) ≟-pat (` x) = no (λ ())
@@ -128,6 +148,7 @@ module Eq where
   (ƛ e) ≟-pat (pᵣ `· pᵣ₁) = no (λ ())
   (ƛ e) ≟-pat (# n) = no (λ ())
   (ƛ e) ≟-pat (pᵣ `+ pᵣ₁) = no (λ ())
+  (ƛ _) ≟-pat (μ _) = no (λ ())
   (lₗ `· lᵣ) ≟-pat $e = no (λ ())
   (lₗ `· lᵣ) ≟-pat $v = no (λ ())
   (lₗ `· lᵣ) ≟-pat (` x) = no (λ ())
@@ -137,6 +158,7 @@ module Eq where
   (lₗ `· lᵣ) ≟-pat (rₗ `· rᵣ) | no l≢r = no λ { refl → l≢r (refl , refl) }
   (lₗ `· lᵣ) ≟-pat (# n) = no (λ ())
   (lₗ `· lᵣ) ≟-pat (rₗ `+ rᵣ) = no (λ ())
+  (_ `· _) ≟-pat (μ _) = no λ ()
   (# n) ≟-pat $e = no (λ ())
   (# n) ≟-pat $v = no (λ ())
   (# n) ≟-pat (` x) = no (λ ())
@@ -146,6 +168,7 @@ module Eq where
   (# n) ≟-pat (# m) | yes refl = yes refl
   (# n) ≟-pat (# m) | no n≢m = no λ { refl → n≢m refl }
   (# n) ≟-pat (pᵣ `+ pᵣ₁) = no (λ ())
+  (# n) ≟-pat (μ _) = no (λ ())
   (lₗ `+ lᵣ) ≟-pat $e = no (λ ())
   (lₗ `+ lᵣ) ≟-pat $v = no (λ ())
   (lₗ `+ lᵣ) ≟-pat (` x) = no (λ ())
@@ -155,3 +178,14 @@ module Eq where
   (lₗ `+ lᵣ) ≟-pat (rₗ `+ rᵣ) with (lₗ ≟-pat rₗ) ×-dec (lᵣ ≟-pat rᵣ)
   (lₗ `+ lᵣ) ≟-pat (rₗ `+ rᵣ) | yes (refl , refl) = yes refl
   (lₗ `+ lᵣ) ≟-pat (rₗ `+ rᵣ) | no l≢r = no λ { refl → l≢r (refl , refl) }
+  (_ `+ _) ≟-pat (μ _) = no (λ ())
+  (μ eₗ) ≟-pat $e = no (λ ())
+  (μ eₗ) ≟-pat $v = no (λ ())
+  (μ eₗ) ≟-pat (` i) = no (λ ())
+  (μ eₗ) ≟-pat (ƛ e) = no (λ ())
+  (μ eₗ) ≟-pat (eᵣ `· eᵣ₁) = no (λ ())
+  (μ eₗ) ≟-pat (# n) = no (λ ())
+  (μ eₗ) ≟-pat (_ `+ _) = no (λ ())
+  (μ eₗ) ≟-pat (μ eᵣ) with eₗ ≟-exp eᵣ
+  (μ eₗ) ≟-pat (μ eᵣ) | yes refl = yes refl
+  (μ eₗ) ≟-pat (μ eᵣ) | no eₗ≢eᵣ = no λ { refl → eₗ≢eᵣ refl }
