@@ -475,70 +475,6 @@ c ⊣ a = (∥ , 0) ⊢ c ⊣ a
 ... | yes ≤ = (A-Δ-≤ ≤) ⊢⊣-select
 ... | no  ≰ = A-Δ-> (≰⇒> ≰) ⊢⊣-select
 
-data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
-  step : ∀ {p a g l e eᵢ e′ e₀ e₀′ ε₀}
-    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : (¬ (e₀ filter)) × (a , l) ⊢ ε₀ ⊣ ∥)
-    → (T : e₀ —→ e₀′)
-    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
-    → (p , a , g , l) ⊢ e ⇥ e′
-
-  skip : ∀ {p a g l e eᵢ e′ e″ e₀ e₀′ ε₀}
-    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
-    → (T : e₀ —→ e₀′)
-    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
-    → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
-    → (p ,  a ,  g ,  l) ⊢ e ⇥ e″
-
-  done : ∀ {p a g l v}
-    → (V : v value)
-    → (p , a , g , l) ⊢ v ⇥ v
-
-_⇥_ : Exp → Exp → Set
-e₀ ⇥ e₁ = ($e , ∥ , 𝟙 , 0) ⊢ e₀ ⇥ e₁
-
-data _↦_ : Exp → Exp → Set where
-  step : ∀ {e c e₀ e₀′ e′}
-    → (D : e ⇒ c ⟨ e₀ ⟩)
-    → (T : e₀ —→ e₀′)
-    → (C : e′ ⇐ c ⟨ e₀′ ⟩)
-    → e ↦ e′
-
-_↦*_ : Exp → Exp → Set
-_↦*_ = _↦_ *
-
-_⇥*_ : Exp → Exp → Set
-_⇥*_ = _⇥_ *
-
-↦*-cong-·ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
-  → e₀ ↦* e₁
-  → (e₀ `· eᵣ) ↦* (e₁ `· eᵣ)
-↦*-cong-·ᵣ init = init
-↦*-cong-·ᵣ (next (step D T C) K) = next (step (D-ξ-·ₗ D) T (C-·ₗ C)) (↦*-cong-·ᵣ K)
-
-↦*-cong-·ₗ : ∀ {e₀ e₁ eₗ : Exp}
-  → eₗ value
-  → e₀ ↦* e₁
-  → (eₗ `· e₀) ↦* (eₗ `· e₁)
-↦*-cong-·ₗ V init = init
-↦*-cong-·ₗ V (next (step D T C) K) = next (step (D-ξ-·ᵣ V D) T (C-·ᵣ C)) (↦*-cong-·ₗ V K)
-
-↦*-cong-+ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
-  → e₀ ↦* e₁
-  → (e₀ `+ eᵣ) ↦* (e₁ `+ eᵣ)
-↦*-cong-+ᵣ init = init
-↦*-cong-+ᵣ (next (step D T C) K) = next (step (D-ξ-+ₗ D) T (C-+ₗ C)) (↦*-cong-+ᵣ K)
-
-↦*-cong-+ₗ : ∀ {e₀ e₁ eₗ : Exp}
-  → eₗ value
-  → e₀ ↦* e₁
-  → (eₗ `+ e₀) ↦* (eₗ `+ e₁)
-↦*-cong-+ₗ V init = init
-↦*-cong-+ₗ V (next (step D T C) K) = next (step (D-ξ-+ᵣ V D) T (C-+ᵣ C)) (↦*-cong-+ₗ V K)
-
 compose-∘ : ∀ {e o}
   → e ⇒ ∘ ⟨ o ⟩
   → e ≡ o
@@ -610,35 +546,51 @@ strip-value V-# = V-#
 ⇐-strip (C-φ C) = ⇐-strip C
 ⇐-strip (C-δ C) = ⇐-strip C
 
--- data _⇴_ : Exp → Exp → Set where
---   O-` : ∀ {i}
---     → (` i) ⇴ (` i)
+data _is-residue : Exp → Set where
+  residue : ∀ {a g l e}
+    → δ (a , g , l) e is-residue
 
---   O-ƛ : ∀ {e}
---     → (ƛ e) ⇴ (ƛ e)
+data _⇴_ : Exp → Exp → Set where
+  O-` : ∀ {i}
+    → (` i) ⇴ (` i)
 
---   O-· : ∀ {eₗ eᵣ eₗ′ eᵣ′}
---     → eₗ ⇴ eₗ′
---     → eᵣ ⇴ eᵣ′
---     → (eₗ `· eᵣ) ⇴ (eₗ′ `· eᵣ′)
+  O-V : ∀ {v}
+    → (V : v value)
+    → v ⇴ v
 
---   O-# : ∀ {n}
---     → (# n) ⇴ (# n)
+  O-· : ∀ {eₗ eᵣ eₗ′ eᵣ′}
+    → eₗ ⇴ eₗ′
+    → eᵣ ⇴ eᵣ′
+    → (eₗ `· eᵣ) ⇴ (eₗ′ `· eᵣ′)
 
---   O-+ : ∀ {eₗ eᵣ eₗ′ eᵣ′}
---     → eₗ ⇴ eₗ′
---     → eᵣ ⇴ eᵣ′
---     → (eₗ `+ eᵣ) ⇴ (eₗ′ `+ eᵣ′)
+  O-+ : ∀ {eₗ eᵣ eₗ′ eᵣ′}
+    → eₗ ⇴ eₗ′
+    → eᵣ ⇴ eᵣ′
+    → (eₗ `+ eᵣ) ⇴ (eₗ′ `+ eᵣ′)
 
---   O-φ : ∀ {f e e′}
---     → e ⇴ e′
---     → φ f e ⇴ φ f e′
+  O-φ : ∀ {f e e′}
+    → e ⇴ e′
+    → φ f e ⇴ φ f e′
 
---   O-δ-δ : ∀ {aₒ gₒ lₒ aᵢ gᵢ lᵢ e e′}
---     → e ⇴ e′
---     → (lᵢ > lₒ)
---     → δ (aᵢ , gᵢ , lᵢ) e′
---     → (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) ⇴ δ (aᵢ , gᵢ , lᵢ) e′
+  O-δᵢ : ∀ {aₒ gₒ lₒ aᵢ gᵢ lᵢ e e′}
+    → (lᵢ > lₒ)
+    → δ (aᵢ , gᵢ , lᵢ) e ⇴ e′
+    → (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) ⇴ e′
+
+  O-δₒ : ∀ {aₒ gₒ lₒ aᵢ gᵢ lᵢ e e′}
+    → (lᵢ ≤ lₒ)
+    → δ (aₒ , gₒ , lₒ) e ⇴ e′
+    → (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) ⇴ e′
+
+  O-δ : ∀ {r e e′}
+    → ¬ (e is-residue)
+    → e ⇴ e′
+    → δ r e ⇴ δ r e′
+
+  O-μ : ∀ {e e′}
+    → e ⇴ e′
+    → (μ e) ⇴ (μ e′)
+
 
 m≤′m+n : ∀ {m n} → m ≤′ m + n
 m≤′m+n {m} {zero} rewrite +-comm m 0 = ≤′-refl
@@ -660,24 +612,90 @@ m≤′m+n {m} {suc n} rewrite +-comm m (suc n) rewrite +-comm n m = ≤′-step
 <-#-+ᵣ {eₗ} {eᵣ} with length eₗ with length eᵣ
 <-#-+ᵣ {eₗ} {eᵣ} | nₗ | nᵣ rewrite +-comm nₗ nᵣ = s≤′s m≤′m+n
 
-optimize′ : (e : Exp) → Acc _<-#_ e → Exp
-optimize′ (` i) (Acc.acc rs) = ` i
-optimize′ (ƛ e) (Acc.acc rs) = ƛ e
-optimize′ (eₗ `· eᵣ) (Acc.acc rs) = (optimize′ eₗ (rs <-#-·ₗ)) `· (optimize′ eᵣ (rs <-#-·ᵣ))
-optimize′ (# n) (Acc.acc rs) = # n
-optimize′ (eₗ `+ eᵣ) (Acc.acc rs) = (optimize′ eₗ (rs <-#-+ₗ)) `+ (optimize′ eᵣ (rs <-#-+ᵣ))
-optimize′ (φ f e) (Acc.acc rs) = φ f (optimize′ e (rs ≤′-refl))
-optimize′ (δ r (` i)) (Acc.acc rs) = δ r (` i)
-optimize′ (δ r (ƛ e)) (Acc.acc rs) = δ r (optimize′ (ƛ e) (rs ≤′-refl))
-optimize′ (δ r (eₗ `· eᵣ)) (Acc.acc rs) = δ r (optimize′ (eₗ `· eᵣ) (rs ≤′-refl))
-optimize′ (δ r (# n)) (Acc.acc rs) = δ r (# n)
-optimize′ (δ r (eₗ `+ eᵣ)) (Acc.acc rs) = δ r (optimize′ (eₗ `+ eᵣ) (rs ≤′-refl))
-optimize′ (δ r (φ f e)) (Acc.acc rs) = δ r (optimize′ (φ f e) (rs ≤′-refl))
-optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) with lᵢ >? lₒ
-optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | yes lᵢ>lₒ = optimize′ (δ (aᵢ , gᵢ , lᵢ) e) (rs ≤′-refl)
-optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | no lᵢ≤lₒ  = optimize′ (δ (aₒ , gₒ , lₒ) e) (rs ≤′-refl)
-optimize′ (δ r (μ e)) (Acc.acc rs) = δ r (μ (optimize′ e (rs (≤′-step ≤′-refl))))
-optimize′ (μ e) (Acc.acc rs) = μ (optimize′ e (rs ≤′-refl))
+optimize′ : (e : Exp) → Acc _<-#_ e → ∃[ e′ ](e ⇴ e′)
+optimize′ (` i) (Acc.acc rs) = ` i , O-`
+optimize′ (ƛ e) (Acc.acc rs) = ƛ e , O-V V-ƛ
+optimize′ (eₗ `· eᵣ) (Acc.acc rs) = (proj₁ (optimize′ eₗ (rs <-#-·ₗ))) `· (proj₁ (optimize′ eᵣ (rs <-#-·ᵣ))) , O-· (proj₂ (optimize′ eₗ (rs <-#-·ₗ))) (proj₂ (optimize′ eᵣ (rs <-#-·ᵣ)))
+optimize′ (# n) (Acc.acc rs) = # n , O-V V-#
+optimize′ (eₗ `+ eᵣ) (Acc.acc rs) = (proj₁ (optimize′ eₗ (rs <-#-+ₗ))) `+ (proj₁ (optimize′ eᵣ (rs <-#-+ᵣ))) , O-+ (proj₂ (optimize′ eₗ (rs <-#-+ₗ))) (proj₂ (optimize′ eᵣ (rs <-#-+ᵣ)))
+optimize′ (φ f e) (Acc.acc rs) = φ f (proj₁ (optimize′ e (rs ≤′-refl))) , O-φ (proj₂ (optimize′ e (rs ≤′-refl)))
+optimize′ (δ r (` i)) (Acc.acc rs) = δ r (` i) , O-δ (λ ()) O-`
+optimize′ (δ r (ƛ e)) (Acc.acc rs) = δ r (proj₁ (optimize′ (ƛ e) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (ƛ e) (rs ≤′-refl)))
+optimize′ (δ r (eₗ `· eᵣ)) (Acc.acc rs) = δ r (proj₁ (optimize′ (eₗ `· eᵣ) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (eₗ `· eᵣ) (rs ≤′-refl)))
+optimize′ (δ r (# n)) (Acc.acc rs) = δ r (# n) , O-δ (λ ()) (O-V V-#)
+optimize′ (δ r (eₗ `+ eᵣ)) (Acc.acc rs) = δ r (proj₁ (optimize′ (eₗ `+ eᵣ) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (eₗ `+ eᵣ) (rs ≤′-refl)))
+optimize′ (δ r (φ f e)) (Acc.acc rs) = δ r (proj₁ (optimize′ (φ f e) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (φ f e) (rs ≤′-refl)))
+optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) with lᵢ ≤? lₒ
+optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | yes lᵢ≤lₒ = proj₁ (optimize′ (δ (aₒ , gₒ , lₒ) e) (rs ≤′-refl)) , O-δₒ lᵢ≤lₒ (proj₂ (optimize′ (δ (aₒ , gₒ , lₒ) e) (rs ≤′-refl)))
+optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | no lᵢ≰lₒ  = proj₁ (optimize′ (δ (aᵢ , gᵢ , lᵢ) e) (rs ≤′-refl)) , O-δᵢ (≰⇒> lᵢ≰lₒ) (proj₂ (optimize′ (δ (aᵢ , gᵢ , lᵢ) e) (rs ≤′-refl)))
+optimize′ (δ r (μ e)) (Acc.acc rs) = δ r (proj₁ (optimize′ (μ e) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (μ e) (rs ≤′-refl)))
+optimize′ (μ e) (Acc.acc rs) = μ (proj₁ (optimize′ e (rs ≤′-refl))) , O-μ (proj₂ (optimize′ e (rs ≤′-refl)))
 
 optimize : Exp → Exp
-optimize e = optimize′ e (<-#-wellFounded e)
+optimize e = proj₁ (optimize′ e (<-#-wellFounded e))
+
+data _⊢_⇥_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
+  step : ∀ {p a g l e eᵢ eₒ e′ e₀ e₀′ ε₀}
+    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
+    → (O : eᵢ ⇴ eₒ)
+    → (D : eₒ ⇒ ε₀ ⟨ e₀ ⟩)
+    → (A : (¬ (e₀ filter)) × (a , l) ⊢ ε₀ ⊣ ∥)
+    → (T : e₀ —→ e₀′)
+    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+    → (p , a , g , l) ⊢ e ⇥ e′
+
+  skip : ∀ {p a g l e eᵢ eₒ e′ e″ e₀ e₀′ ε₀}
+    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
+    → (O : eᵢ ⇴ eₒ)
+    → (D : eₒ ⇒ ε₀ ⟨ e₀ ⟩)
+    → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
+    → (T : e₀ —→ e₀′)
+    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
+    → (R : (p , a , g , l) ⊢ e′ ⇥ e″)
+    → (p ,  a ,  g ,  l) ⊢ e ⇥ e″
+
+  done : ∀ {p a g l v}
+    → (V : v value)
+    → (p , a , g , l) ⊢ v ⇥ v
+
+_⇥_ : Exp → Exp → Set
+e₀ ⇥ e₁ = ($e , ∥ , 𝟙 , 0) ⊢ e₀ ⇥ e₁
+
+data _↦_ : Exp → Exp → Set where
+  step : ∀ {e c e₀ e₀′ e′}
+    → (D : e ⇒ c ⟨ e₀ ⟩)
+    → (T : e₀ —→ e₀′)
+    → (C : e′ ⇐ c ⟨ e₀′ ⟩)
+    → e ↦ e′
+
+_↦*_ : Exp → Exp → Set
+_↦*_ = _↦_ *
+
+_⇥*_ : Exp → Exp → Set
+_⇥*_ = _⇥_ *
+
+↦*-cong-·ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
+  → e₀ ↦* e₁
+  → (e₀ `· eᵣ) ↦* (e₁ `· eᵣ)
+↦*-cong-·ᵣ init = init
+↦*-cong-·ᵣ (next (step D T C) K) = next (step (D-ξ-·ₗ D) T (C-·ₗ C)) (↦*-cong-·ᵣ K)
+
+↦*-cong-·ₗ : ∀ {e₀ e₁ eₗ : Exp}
+  → eₗ value
+  → e₀ ↦* e₁
+  → (eₗ `· e₀) ↦* (eₗ `· e₁)
+↦*-cong-·ₗ V init = init
+↦*-cong-·ₗ V (next (step D T C) K) = next (step (D-ξ-·ᵣ V D) T (C-·ᵣ C)) (↦*-cong-·ₗ V K)
+
+↦*-cong-+ᵣ : ∀ {e₀ e₁ : Exp} {eᵣ : Exp}
+  → e₀ ↦* e₁
+  → (e₀ `+ eᵣ) ↦* (e₁ `+ eᵣ)
+↦*-cong-+ᵣ init = init
+↦*-cong-+ᵣ (next (step D T C) K) = next (step (D-ξ-+ₗ D) T (C-+ₗ C)) (↦*-cong-+ᵣ K)
+
+↦*-cong-+ₗ : ∀ {e₀ e₁ eₗ : Exp}
+  → eₗ value
+  → e₀ ↦* e₁
+  → (eₗ `+ e₀) ↦* (eₗ `+ e₁)
+↦*-cong-+ₗ V init = init
+↦*-cong-+ₗ V (next (step D T C) K) = next (step (D-ξ-+ᵣ V D) T (C-+ᵣ C)) (↦*-cong-+ₗ V K)

@@ -167,6 +167,20 @@ applyₚ-preserve ⊢ᵥ (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (applyₚ-preserve ⊢ᵥ
 —→-preserve (⊢-φ ⊢ₚ ⊢ₑ) (T-β-φ V) = ⊢ₑ
 —→-preserve (⊢-δ ⊢ₑ) (T-β-δ V) = ⊢ₑ
 
+⇴-preserve : ∀ {Γ e₁ e₂ τ}
+  → Γ ⊢ e₁ ∶ τ
+  → e₁ ⇴ e₂
+  → Γ ⊢ e₂ ∶ τ
+⇴-preserve (⊢-` ∋) O-` = ⊢-` ∋
+⇴-preserve (⊢-ƛ ⊢) (O-V V-ƛ) = ⊢-ƛ ⊢
+⇴-preserve (⊢-· ⊢ₗ ⊢ᵣ) (O-· Oₗ Oᵣ) = ⊢-· (⇴-preserve ⊢ₗ Oₗ) (⇴-preserve ⊢ᵣ Oᵣ)
+⇴-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (O-+ Oₗ Oᵣ) = ⊢-+ (⇴-preserve ⊢ₗ Oₗ) (⇴-preserve ⊢ᵣ Oᵣ)
+⇴-preserve ⊢-# (O-V V-#) = ⊢-#
+⇴-preserve (⊢-φ ⊢ₚ ⊢ₑ) (O-φ O) = ⊢-φ ⊢ₚ (⇴-preserve ⊢ₑ O)
+⇴-preserve (⊢-δ ⊢) (O-δᵢ x O) = ⇴-preserve ⊢ O
+⇴-preserve (⊢-δ (⊢-δ ⊢)) (O-δₒ x O) = ⇴-preserve (⊢-δ ⊢) O
+⇴-preserve (⊢-δ ⊢) (O-δ x O) = ⊢-δ (⇴-preserve ⊢ O)
+
 -- ↦-preserve : ∀ {Γ e₁ e₂ τ}
 --   → Γ ⊢ e₁ ∶ τ
 --   → e₁ ↦ e₂
@@ -189,6 +203,6 @@ preserve : ∀ {Γ e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
   → e₁ ⇥ e₂
   → Γ ⊢ e₂ ∶ τ
-preserve ⊢ (step I D A T C) = ⇐-preserve (⇝-preserve ⊢ I) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
-preserve ⊢ (skip I D A T C S) = preserve (⇐-preserve (⇝-preserve ⊢ I) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
+preserve ⊢ (step I O D A T C) = ⇐-preserve (⇴-preserve (⇝-preserve ⊢ I) O) D (λ ⊢₀ → —→-preserve ⊢₀ T) C
+preserve ⊢ (skip I O D A T C S) = preserve (⇐-preserve (⇴-preserve (⇝-preserve ⊢ I) O) D (λ ⊢₀ → —→-preserve ⊢₀ T) C) S
 preserve ⊢ (done V) = ⊢
