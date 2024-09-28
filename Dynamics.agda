@@ -65,6 +65,9 @@ data _—→_ : Exp → Exp → Set where
     → (V : v value)
     → (δ r v) —→ v
 
+  T-β-μ : ∀ {e}
+    → (μ e) —→ applyₑ e 0 (μ e)
+
 data _* (_R_ : Exp → Exp → Set) : Exp → Exp → Set where
   init : ∀ {e}
     → (_R_ *) e e
@@ -85,6 +88,7 @@ data Ctx : Set where
   _+ᵣ_ : Exp → Ctx → Ctx
   φ    : Filter  → Ctx → Ctx
   δ    : Residue → Ctx → Ctx
+  -- μ    : Ctx → Ctx
 
 infix  0 _⇒_
 infixr 1 _⟨_⟩
@@ -137,35 +141,42 @@ data _⇒_ : Exp → Obj → Set where
     → (V : v value)
     → (δ r v) ⇒ ∘ ⟨ δ r v ⟩
 
+  D-β-μ : ∀ {e}
+    → (μ e) ⇒ ∘ ⟨ μ e ⟩
+
 infix 0 _⇐_
 
 data _⇐_ : Exp → Obj → Set where
   C-∘ : ∀ {e}
     → e ⇐ ∘ ⟨ e ⟩
 
-  C-·ₗ : ∀ {εₗ eᵣ eₗ e}
-    → eₗ ⇐ εₗ ⟨ e ⟩
-    → (eₗ `· eᵣ) ⇐ (εₗ ·ₗ eᵣ) ⟨ e ⟩
+  C-·ₗ : ∀ {ℰₗ eᵣ eₗ e}
+    → eₗ ⇐ ℰₗ ⟨ e ⟩
+    → (eₗ `· eᵣ) ⇐ (ℰₗ ·ₗ eᵣ) ⟨ e ⟩
 
-  C-·ᵣ : ∀ {eₗ εᵣ eᵣ e}
-    → eᵣ ⇐ εᵣ ⟨ e ⟩
-    → (eₗ `· eᵣ) ⇐ (eₗ ·ᵣ εᵣ) ⟨ e ⟩
+  C-·ᵣ : ∀ {eₗ ℰᵣ eᵣ e}
+    → eᵣ ⇐ ℰᵣ ⟨ e ⟩
+    → (eₗ `· eᵣ) ⇐ (eₗ ·ᵣ ℰᵣ) ⟨ e ⟩
 
-  C-+ₗ : ∀ {εₗ eᵣ eₗ e}
-    → eₗ ⇐ εₗ ⟨ e ⟩
-    → (eₗ `+ eᵣ) ⇐ (εₗ +ₗ eᵣ) ⟨ e ⟩
+  C-+ₗ : ∀ {ℰₗ eᵣ eₗ e}
+    → eₗ ⇐ ℰₗ ⟨ e ⟩
+    → (eₗ `+ eᵣ) ⇐ (ℰₗ +ₗ eᵣ) ⟨ e ⟩
 
-  C-+ᵣ : ∀ {eₗ εᵣ eᵣ e}
-    → eᵣ ⇐ εᵣ ⟨ e ⟩
-    → (eₗ `+ eᵣ) ⇐ (eₗ +ᵣ εᵣ) ⟨ e ⟩
+  C-+ᵣ : ∀ {eₗ ℰᵣ eᵣ e}
+    → eᵣ ⇐ ℰᵣ ⟨ e ⟩
+    → (eₗ `+ eᵣ) ⇐ (eₗ +ᵣ ℰᵣ) ⟨ e ⟩
 
-  C-φ : ∀ {f ε e e′}
-    → e′ ⇐ ε ⟨ e ⟩
-    → (φ f e′) ⇐ (φ f ε) ⟨ e ⟩
+  C-φ : ∀ {f ℰ e e′}
+    → e′ ⇐ ℰ ⟨ e ⟩
+    → (φ f e′) ⇐ (φ f ℰ) ⟨ e ⟩
 
-  C-δ : ∀ {r ε e e′}
-    → e′ ⇐ ε ⟨ e ⟩
-    → (δ r e′) ⇐ (δ r ε) ⟨ e ⟩
+  C-δ : ∀ {r ℰ e e′}
+    → e′ ⇐ ℰ ⟨ e ⟩
+    → (δ r e′) ⇐ (δ r ℰ) ⟨ e ⟩
+
+  -- C-μ : ∀ {ℰ e e′}
+  --   → e′ ⇐ ℰ ⟨ e ⟩
+  --   → (μ e′) ⇐ (μ ℰ) ⟨ e ⟩
 
 compose : Ctx → Exp → Exp
 compose ∘ e = e
@@ -175,6 +186,7 @@ compose (c +ₗ x) e = (compose c e) `+ x
 compose (x +ᵣ c) e = x `+ (compose c e)
 compose (φ x c) e = φ x (compose c e)
 compose (δ x c) e = δ x (compose c e)
+-- compose (μ c) e = μ (compose c e)
 
 compose-⇐ : ∀ (c : Ctx) (e : Exp)
   → compose c e ⇐ c ⟨ e ⟩
@@ -185,6 +197,7 @@ compose-⇐ (c +ₗ x) e = C-+ₗ (compose-⇐ c e)
 compose-⇐ (x +ᵣ c) e = C-+ᵣ (compose-⇐ c e)
 compose-⇐ (φ x c) e = C-φ (compose-⇐ c e)
 compose-⇐ (δ x c) e = C-δ (compose-⇐ c e)
+-- compose-⇐ (μ c) e = C-μ (compose-⇐ c e)
 
 data _⊢_⇝_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
   I-V : ∀ {p a g l v}
@@ -227,15 +240,18 @@ data _⊢_⇝_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
     → (pat , act , gas , lvl) ⊢ e ⇝ e′
     → (pat , act , gas , lvl) ⊢ (δ (a , g , l) e) ⇝ (δ (a , g , l) e′)
 
-  I-μ-⊤ : ∀ {p a g l e e′}
-    → (M : p matches (μ e))
-    → (p , a , g , l) ⊢ e ⇝ e′
-    → (p , a , g , l) ⊢ (μ e) ⇝ (δ (a , g , l) (μ e′))
+  I-μ : ∀ {p a g l e}
+    → (p , a , g , l) ⊢ (μ e) ⇝ (μ e)
 
-  I-μ-⊥ : ∀ {p a g l e e′}
-    → (¬M : ¬ (p matches (μ e)))
-    → (p , a , g , l) ⊢ e ⇝ e′
-    → (p , a , g , l) ⊢ (μ e) ⇝ (μ e′)
+  -- I-μ-⊤ : ∀ {p a g l e e′}
+  --   → (M : p matches (μ e))
+  --   → (p , a , g , l) ⊢ e ⇝ e′
+  --   → (p , a , g , l) ⊢ (μ e) ⇝ (δ (a , g , l) (μ e′))
+
+  -- I-μ-⊥ : ∀ {p a g l e e′}
+  --   → (¬M : ¬ (p matches (μ e)))
+  --   → (p , a , g , l) ⊢ e ⇝ e′
+  --   → (p , a , g , l) ⊢ (μ e) ⇝ (μ e′)
 
 _⇝_ : Exp → Exp → Set
 e ⇝ eᵢ = ($e , ∥ , 𝟙 , 0) ⊢ e ⇝ eᵢ
@@ -251,8 +267,9 @@ e ⇝ eᵢ = ($e , ∥ , 𝟙 , 0) ⊢ e ⇝ eᵢ
 ⇝-strip (I-+-⊥ M Iₗ Iᵣ) rewrite ⇝-strip Iₗ rewrite ⇝-strip Iᵣ = refl
 ⇝-strip (I-φ I₀ I₁) rewrite ⇝-strip I₀ rewrite ⇝-strip I₁ = refl
 ⇝-strip (I-δ I) = ⇝-strip I
-⇝-strip (I-μ-⊤ M I) rewrite ⇝-strip I = refl
-⇝-strip (I-μ-⊥ M I) rewrite ⇝-strip I = refl
+-- ⇝-strip (I-μ-⊤ M I) rewrite ⇝-strip I = refl
+-- ⇝-strip (I-μ-⊥ M I) rewrite ⇝-strip I = refl
+⇝-strip (I-μ) = refl
 
 count-φ : Exp → ℕ
 count-φ (` i) = 0
@@ -392,9 +409,10 @@ instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , 
 instr′ p a g l (φ (p₀ , a₀ , g₀) e) (Acc.acc rs) | e′ , e≡φe′ , I′ | e″ , e′≡φe″ , I″ = (φ (p₀ , a₀ , g₀) e″) , cong suc (trans e≡φe′ e′≡φe″) , I-φ I′ I″
 instr′ p a g l (δ r e) (Acc.acc rs) with instr′ p a g l e (rs (inj₂ (refl , <-δ)))
 instr′ p a g l (δ r e) (Acc.acc rs) | e′ , e≡e′ , I′ = δ r e′ , e≡e′ , I-δ I′
-instr′ p a g l (μ e) (Acc.acc rs) with (p matches? (μ e)) with instr′ p a g l e (rs <-#φ-exp-μ)
-instr′ p a g l (μ e) (Acc.acc rs) | yes M | e′ , ≡ , I rewrite ≡ = δ (a , g , l) (μ e′) , refl , I-μ-⊤ M I
-instr′ p a g l (μ e) (Acc.acc rs) | no ¬M | e′ , ≡ , I rewrite ≡ = μ e′ , refl , I-μ-⊥ ¬M I
+-- instr′ p a g l (μ e) (Acc.acc rs) with (p matches? (μ e)) with instr′ p a g l e (rs <-#φ-exp-μ)
+-- instr′ p a g l (μ e) (Acc.acc rs) | yes M | e′ , ≡ , I rewrite ≡ = δ (a , g , l) (μ e′) , refl , I-μ-⊤ M I
+-- instr′ p a g l (μ e) (Acc.acc rs) | no ¬M | e′ , ≡ , I rewrite ≡ = μ e′ , refl , I-μ-⊥ ¬M I
+instr′ p a g l (μ e) (Acc.acc rs) = (μ e) , refl , I-μ
 
 instr : (p : Pat) (a : Act) (g : Gas) (lvl : ℕ) (e : Exp) → Exp
 instr p a g l e with instr′ p a g l e (<-#φ-exp-wellFounded (e , e))
@@ -407,13 +425,14 @@ instr p a g l e | e′ , ≡φ = e′
 
 decay : Ctx → Ctx
 decay ∘ = ∘
-decay (ε ·ₗ e) = (decay ε) ·ₗ e
-decay (e ·ᵣ ε) = e ·ᵣ (decay ε)
-decay (ε +ₗ e) = (decay ε) +ₗ e
-decay (e +ᵣ ε) = e +ᵣ (decay ε)
-decay (φ f  ε) = φ f (decay ε)
-decay (δ (a , 𝟙 , l) ε) = (decay ε)
-decay (δ (a , ⋆ , l) ε) = δ (a , ⋆ , l) (decay ε)
+decay (c ·ₗ e) = (decay c) ·ₗ e
+decay (e ·ᵣ c) = e ·ᵣ (decay c)
+decay (c +ₗ e) = (decay c) +ₗ e
+decay (e +ᵣ c) = e +ᵣ (decay c)
+decay (φ f  c) = φ f (decay c)
+decay (δ (a , 𝟙 , l) c) = (decay c)
+decay (δ (a , ⋆ , l) c) = δ (a , ⋆ , l) (decay c)
+-- decay (μ c) = μ (decay c)
 
 select : Act → ℕ → Ctx → Act
 select act lvl ∘ = act
@@ -425,6 +444,7 @@ select act lvl (φ f c) = select act lvl c
 select act lvl (δ (a , g , l) c) with l ≤? lvl
 ... | yes _ = select act lvl c
 ... | no  _ = select a l c
+-- select act lvl (μ c) = select act lvl c
 
 data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
   A-∘ : ∀ {act lvl}
@@ -460,6 +480,10 @@ data _⊢_⊣_ : Act × ℕ → Ctx → Act → Set where
     → (act , lvl) ⊢ ε ⊣ act′
     → (act , lvl) ⊢ δ (a , g , l)  ε ⊣ act′
 
+  -- A-μ : ∀ {act lvl ε act′}
+  --   → (act , lvl) ⊢ ε ⊣ act′
+  --   → (act , lvl) ⊢ μ ε ⊣ act′
+
 _⊣_ : Ctx → Act → Set
 c ⊣ a = (∥ , 0) ⊢ c ⊣ a
 
@@ -474,6 +498,7 @@ c ⊣ a = (∥ , 0) ⊢ c ⊣ a
 ⊢⊣-select {a = act} {l = lvl} {ε = δ (a , _ , l)  ε} with (l ≤? lvl)
 ... | yes ≤ = (A-Δ-≤ ≤) ⊢⊣-select
 ... | no  ≰ = A-Δ-> (≰⇒> ≰) ⊢⊣-select
+-- ⊢⊣-select {ε = μ ε} = A-μ ⊢⊣-select
 
 compose-∘ : ∀ {e o}
   → e ⇒ ∘ ⟨ o ⟩
@@ -482,6 +507,7 @@ compose-∘ (D-β-· Vₗ Vᵣ) = refl
 compose-∘ (D-β-+ Vₗ Vᵣ) = refl
 compose-∘ (D-β-φ V) = refl
 compose-∘ (D-β-δ V) = refl
+compose-∘ (D-β-μ)   = refl
 
 ↑ₑ-strip : ∀ (c : ℕ) (d : ℕ) (e : Exp)
   → ↑ₑ c d (strip e) ≡ strip (↑ₑ c d e)
@@ -492,7 +518,7 @@ compose-∘ (D-β-δ V) = refl
 ↑ₑ-strip c d (eₗ `+ eᵣ) = cong₂ _`+_ (↑ₑ-strip c d eₗ) (↑ₑ-strip c d eᵣ)
 ↑ₑ-strip c d (φ f e) = ↑ₑ-strip c d e
 ↑ₑ-strip c d (δ r e) = ↑ₑ-strip c d e
-↑ₑ-strip c d (μ e) = cong μ_ (↑ₑ-strip (suc c) d e)
+↑ₑ-strip c d (μ e) = cong μ (↑ₑ-strip (suc c) d e)
 
 applyₙ-strip : ∀ (i x : ℕ) (v : Exp)
   → applyₙ i x (strip v) ≡ strip (applyₙ i x v)
@@ -510,7 +536,7 @@ applyₑ-strip (# n) x v = refl
 applyₑ-strip (eₗ `+ eᵣ) x v = cong₂ _`+_ (applyₑ-strip eₗ x v) (applyₑ-strip eᵣ x v)
 applyₑ-strip (φ f e) x v = applyₑ-strip e x v
 applyₑ-strip (δ r e) x v = applyₑ-strip e x v
-applyₑ-strip (μ e) x v rewrite ↑ₑ-strip 0 1 v = cong μ_ (applyₑ-strip e (suc x) (↑ₑ 0 1 v))
+applyₑ-strip (μ e) x v rewrite ↑ₑ-strip 0 1 v = cong μ (applyₑ-strip e (suc x) (↑ₑ 0 1 v))
 
 stripₖ : Ctx → Ctx
 stripₖ ∘ = ∘
@@ -520,6 +546,7 @@ stripₖ (c +ₗ x) = (stripₖ c) +ₗ (strip x)
 stripₖ (x +ᵣ c) = (strip x) +ᵣ (stripₖ c)
 stripₖ (φ x c) = stripₖ c
 stripₖ (δ x c) = stripₖ c
+-- stripₖ (μ c) = μ (stripₖ c)
 
 strip-value : ∀ {v : Exp}
   → v value
@@ -545,6 +572,7 @@ strip-value V-# = V-#
 ⇐-strip (C-+ᵣ C) = C-+ᵣ (⇐-strip C)
 ⇐-strip (C-φ C) = ⇐-strip C
 ⇐-strip (C-δ C) = ⇐-strip C
+-- ⇐-strip (C-μ C) = C-μ (⇐-strip C)
 
 data _is-residue : Exp → Set where
   residue : ∀ {a g l e}
@@ -587,9 +615,8 @@ data _⇴_ : Exp → Exp → Set where
     → e ⇴ e′
     → δ r e ⇴ δ r e′
 
-  O-μ : ∀ {e e′}
-    → e ⇴ e′
-    → (μ e) ⇴ (μ e′)
+  O-μ : ∀ {e}
+    → (μ e) ⇴ (μ e)
 
 
 m≤′m+n : ∀ {m n} → m ≤′ m + n
@@ -629,7 +656,8 @@ optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) w
 optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | yes lᵢ≤lₒ = proj₁ (optimize′ (δ (aₒ , gₒ , lₒ) e) (rs ≤′-refl)) , O-δₒ lᵢ≤lₒ (proj₂ (optimize′ (δ (aₒ , gₒ , lₒ) e) (rs ≤′-refl)))
 optimize′ (δ (aₒ , gₒ , lₒ) (δ (aᵢ , gᵢ , lᵢ) e)) (Acc.acc rs) | no lᵢ≰lₒ  = proj₁ (optimize′ (δ (aᵢ , gᵢ , lᵢ) e) (rs ≤′-refl)) , O-δᵢ (≰⇒> lᵢ≰lₒ) (proj₂ (optimize′ (δ (aᵢ , gᵢ , lᵢ) e) (rs ≤′-refl)))
 optimize′ (δ r (μ e)) (Acc.acc rs) = δ r (proj₁ (optimize′ (μ e) (rs ≤′-refl))) , O-δ (λ ()) (proj₂ (optimize′ (μ e) (rs ≤′-refl)))
-optimize′ (μ e) (Acc.acc rs) = μ (proj₁ (optimize′ e (rs ≤′-refl))) , O-μ (proj₂ (optimize′ e (rs ≤′-refl)))
+-- optimize′ (μ e) (Acc.acc rs) = μ (proj₁ (optimize′ e (rs ≤′-refl))) , O-μ (proj₂ (optimize′ e (rs ≤′-refl)))
+optimize′ (μ e) (Acc.acc rs) = μ e , O-μ
 
 optimize : Exp → Exp
 optimize e = proj₁ (optimize′ e (<-#-wellFounded e))

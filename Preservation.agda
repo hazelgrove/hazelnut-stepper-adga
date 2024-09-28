@@ -18,12 +18,13 @@ strip-preserve : ∀ {Γ e τ}
   → Γ ⊢ e ∶ τ
   → Γ ⊢ (strip e) ∶ τ
 strip-preserve (⊢-` ∋-x)   = ⊢-` ∋-x
-strip-preserve (⊢-ƛ x⊢e)   = ⊢-ƛ (strip-preserve x⊢e)
+strip-preserve (⊢-ƛ ⊢ₑ)   = ⊢-ƛ (strip-preserve ⊢ₑ)
 strip-preserve (⊢-· ⊢ₗ ⊢ᵣ) = ⊢-· (strip-preserve ⊢ₗ) (strip-preserve ⊢ᵣ)
 strip-preserve (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (strip-preserve ⊢ₗ) (strip-preserve ⊢ᵣ)
 strip-preserve ⊢-#         = ⊢-#
 strip-preserve (⊢-φ ⊢ₚ ⊢ₑ) = strip-preserve ⊢ₑ
 strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
+strip-preserve (⊢-μ ⊢ₑ)    = ⊢-μ (strip-preserve ⊢ₑ)
 
 ⇝-preserve : ∀ {Γ s e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
@@ -38,11 +39,12 @@ strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
 ⇝-preserve (⊢-+ ⊢ₗ ⊢ᵣ) (I-+-⊥ M Iₗ Iᵣ) = ⊢-+ (⇝-preserve ⊢ₗ Iₗ) (⇝-preserve ⊢ᵣ Iᵣ)
 ⇝-preserve (⊢-φ ⊢ₚ ⊢ₑ) (I-φ I₀ I₁) = ⊢-φ ⊢ₚ (⇝-preserve (⇝-preserve ⊢ₑ I₀) I₁)
 ⇝-preserve (⊢-δ ⊢) (I-δ I) = ⊢-δ (⇝-preserve ⊢ I)
+⇝-preserve (⊢-μ ⊢) (I-μ) = ⊢-μ ⊢
 
 ⇐-preserve : ∀ {Γ} {e e′ e₀ e₀′ : Exp} {τ} {ε : Dynamics.Ctx}
   → Γ ⊢ e ∶ τ
   → e ⇒ ε ⟨ e₀ ⟩
-  → (∀ {τ₀} → Γ ⊢ e₀ ∶ τ₀ → Γ ⊢ e₀′ ∶ τ₀)
+  → (∀ {Γ} {τ₀} → Γ ⊢ e₀ ∶ τ₀ → Γ ⊢ e₀′ ∶ τ₀)
   → e′ ⇐ (decay ε) ⟨ e₀′ ⟩
   → Γ ⊢ e′ ∶ τ
 ⇐-preserve (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ₗ D) P₀ (C-·ₗ C) = ⊢-· (⇐-preserve ⊢ₗ D P₀ C) ⊢ᵣ
@@ -57,6 +59,7 @@ strip-preserve (⊢-δ ⊢ₑ)    = strip-preserve ⊢ₑ
 ⇐-preserve (⊢-δ {r = a , ⋆ , l} ⊢) (D-ξ-δ D) P₀ (C-δ C) = ⊢-δ (⇐-preserve ⊢ D P₀ C)
 ⇐-preserve (⊢-δ {r = a , 𝟙 , l} ⊢) (D-β-δ V) P₀ (C-∘) = P₀ (⊢-δ ⊢)
 ⇐-preserve (⊢-δ {r = a , ⋆ , l} ⊢) (D-β-δ V) P₀ (C-∘) = P₀ (⊢-δ ⊢)
+⇐-preserve (⊢-μ ⊢) (D-β-μ) P₀ (C-∘) = P₀ (⊢-μ ⊢)
 
 insert-preserve-> : ∀ {Γ x τᵥ i τᵢ}
   → (i > x)
@@ -98,6 +101,7 @@ patternize-preserve (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (patternize-preserve ⊢ₗ) (
 patternize-preserve ⊢-# = ⊢-#
 patternize-preserve (⊢-φ ⊢ₚ ⊢ₑ) = patternize-preserve ⊢ₑ
 patternize-preserve (⊢-δ ⊢ₑ) = patternize-preserve ⊢ₑ
+patternize-preserve (⊢-μ ⊢ₑ) = ⊢-μ ⊢ₑ
 
 ↑ₙ-preserve : ∀ {Γ τ₀} {x c : ℕ} {τ}
   → Γ ∋ x ∶ τ
@@ -119,6 +123,7 @@ patternize-preserve (⊢-δ ⊢ₑ) = patternize-preserve ⊢ₑ
 ↑ₑ-preserve ⊢-# = ⊢-#
 ↑ₑ-preserve (⊢-φ ⊢ₚ ⊢ₑ) = ⊢-φ (↑ₚ-preserve ⊢ₚ) (↑ₑ-preserve ⊢ₑ)
 ↑ₑ-preserve (⊢-δ ⊢ₑ) = ⊢-δ (↑ₑ-preserve ⊢ₑ)
+↑ₑ-preserve (⊢-μ ⊢ₑ) = ⊢-μ (↑ₑ-preserve ⊢ₑ)
 
 ↑ₚ-preserve ⊢-E = ⊢-E
 ↑ₚ-preserve ⊢-V = ⊢-V
@@ -127,6 +132,7 @@ patternize-preserve (⊢-δ ⊢ₑ) = patternize-preserve ⊢ₑ
 ↑ₚ-preserve (⊢-· ⊢ₗ ⊢ᵣ) = ⊢-· (↑ₚ-preserve ⊢ₗ) (↑ₚ-preserve ⊢ᵣ)
 ↑ₚ-preserve ⊢-# = ⊢-#
 ↑ₚ-preserve (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (↑ₚ-preserve ⊢ₗ) (↑ₚ-preserve ⊢ᵣ)
+↑ₚ-preserve (⊢-μ ⊢ₑ) = ⊢-μ (↑ₑ-preserve ⊢ₑ)
 
 applyₑ-preserve : ∀ {Γ} {e v : Exp} {x : ℕ} {τᵥ τᵢ}
   → Γ ⊢ v ∶ τᵥ
@@ -143,6 +149,7 @@ applyₑ-preserve ⊢ᵥ (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (applyₑ-preserve ⊢ᵥ
 applyₑ-preserve ⊢ᵥ ⊢-# = ⊢-#
 applyₑ-preserve ⊢ᵥ (⊢-φ ⊢ₚ ⊢ₑ) = ⊢-φ (applyₚ-preserve ⊢ᵥ ⊢ₚ) (applyₑ-preserve ⊢ᵥ ⊢ₑ)
 applyₑ-preserve ⊢ᵥ (⊢-δ ⊢ₑ) = ⊢-δ (applyₑ-preserve ⊢ᵥ ⊢ₑ)
+applyₑ-preserve ⊢ᵥ (⊢-μ ⊢ₑ) = ⊢-μ (applyₑ-preserve (↑ₑ-preserve ⊢ᵥ) ⊢ₑ)
 
 applyₚ-preserve ⊢ᵥ ⊢-E = ⊢-E
 applyₚ-preserve ⊢ᵥ ⊢-V = ⊢-V
@@ -151,21 +158,17 @@ applyₚ-preserve ⊢ᵥ (⊢-ƛ ⊢ₑ) = patternize-preserve (applyₑ-preserv
 applyₚ-preserve ⊢ᵥ (⊢-· ⊢ₗ ⊢ᵣ) = ⊢-· (applyₚ-preserve ⊢ᵥ ⊢ₗ) (applyₚ-preserve ⊢ᵥ ⊢ᵣ)
 applyₚ-preserve ⊢ᵥ ⊢-# = ⊢-#
 applyₚ-preserve ⊢ᵥ (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (applyₚ-preserve ⊢ᵥ ⊢ₗ) (applyₚ-preserve ⊢ᵥ ⊢ᵣ)
-
-·-preserve : ∀ {Γ} {e v : Exp} {τᵥ τₑ}
-  → Γ ⊢ v ∶ τᵥ
-  → (Γ ⸴ τᵥ) ⊢ e ∶ τₑ
-  → Γ ⊢ applyₑ e 0 v ∶ τₑ
-·-preserve ⊢ᵥ ⊢ₑ = applyₑ-preserve ⊢ᵥ ⊢ₑ
+applyₚ-preserve ⊢ᵥ (⊢-μ ⊢ₑ) = patternize-preserve (applyₑ-preserve ⊢ᵥ (⊢-μ ⊢ₑ))
 
 —→-preserve : ∀ {Γ e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
   → e₁ —→ e₂
   → Γ ⊢ e₂ ∶ τ
-—→-preserve (⊢-· (⊢-ƛ ⊢ₗ) ⊢ᵣ) (T-β-· Vᵣ) = ·-preserve ⊢ᵣ ⊢ₗ
+—→-preserve (⊢-· (⊢-ƛ ⊢ₗ) ⊢ᵣ) (T-β-· Vᵣ) = applyₑ-preserve ⊢ᵣ ⊢ₗ
 —→-preserve (⊢-+ ⊢-# ⊢-#) T-β-+ = ⊢-#
 —→-preserve (⊢-φ ⊢ₚ ⊢ₑ) (T-β-φ V) = ⊢ₑ
 —→-preserve (⊢-δ ⊢ₑ) (T-β-δ V) = ⊢ₑ
+—→-preserve (⊢-μ ⊢ₑ) (T-β-μ)   = applyₑ-preserve (⊢-μ ⊢ₑ) ⊢ₑ
 
 ⇴-preserve : ∀ {Γ e₁ e₂ τ}
   → Γ ⊢ e₁ ∶ τ
@@ -180,6 +183,7 @@ applyₚ-preserve ⊢ᵥ (⊢-+ ⊢ₗ ⊢ᵣ) = ⊢-+ (applyₚ-preserve ⊢ᵥ
 ⇴-preserve (⊢-δ ⊢) (O-δᵢ x O) = ⇴-preserve ⊢ O
 ⇴-preserve (⊢-δ (⊢-δ ⊢)) (O-δₒ x O) = ⇴-preserve (⊢-δ ⊢) O
 ⇴-preserve (⊢-δ ⊢) (O-δ x O) = ⊢-δ (⇴-preserve ⊢ O)
+⇴-preserve (⊢-μ ⊢) (O-μ) = ⊢-μ ⊢
 
 -- ↦-preserve : ∀ {Γ e₁ e₂ τ}
 --   → Γ ⊢ e₁ ∶ τ

@@ -23,7 +23,6 @@ Residue : Set
 Residue = Act × Gas × ℕ
 
 infix  5 ƛ_
-infix  5 μ_
 infixl 7 _`+_
 infixl 8 _`·_
 infix  9 `_
@@ -36,7 +35,7 @@ data Exp where
   _`+_ : (l : Exp) → (r : Exp) → Exp
   φ    : (f : Filter) → (e : Exp) → Exp
   δ    : (r : Residue) → (e : Exp) → Exp
-  μ_   : (e : Exp) → Exp
+  μ    : (e : Exp) → Exp
 
 data Pat where
   $e   : Pat
@@ -46,7 +45,7 @@ data Pat where
   _`·_ : (l : Pat) → (r : Pat) → Pat
   #_   : (n : ℕ) → Pat
   _`+_ : (l : Pat) → (r : Pat) → Pat
-  μ_   : (e : Exp) → Pat
+  μ    : (e : Exp) → Pat
 
 data _value : Exp → Set where
   V-ƛ : ∀ {e : Exp}
@@ -62,7 +61,7 @@ _value? : (e : Exp) → Dec (e value)
 (e `+ e₁) value? = no (λ ())
 φ f e value? = no (λ ())
 δ r e value? = no (λ ())
-(μ e) value? = no (λ ())
+μ e value? = no (λ ())
 
 data Val : Set where
   #_ : (n : ℕ) → Val

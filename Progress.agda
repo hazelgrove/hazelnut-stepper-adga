@@ -103,6 +103,7 @@ value-⇜-value V-# (I-V V-#) = V-#
 ⇒-progress (⊢-δ ⊢) with ⇒-progress ⊢
 ⇒-progress (⊢-δ {r = r} {e = e} ⊢) | ⇒-V V = ⇒-D (D-β-δ V)
 ⇒-progress (⊢-δ {r = r} {e = e} ⊢) | ⇒-D D = ⇒-D (D-ξ-δ D)
+⇒-progress (⊢-μ ⊢ₑ) = ⇒-D D-β-μ
 
 ⊢⊣-progress : ∀ a l {e c o}
   → e ⇒ c ⟨ o ⟩
@@ -123,6 +124,7 @@ value-⇜-value V-# (I-V V-#) = V-#
 →-progress (⊢-φ {e = e} x ⊢) (D-β-φ V) = e , (T-β-φ V)
 →-progress (⊢-δ ⊢) (D-ξ-δ D) = →-progress ⊢ D
 →-progress (⊢-δ {e = e} ⊢) (D-β-δ V) = e , T-β-δ V
+→-progress (⊢-μ {e = e} ⊢) (D-β-μ) = applyₑ e 0 (μ e) , T-β-μ
 
 ⇐-progress′ : ∀ {e τ c o o′}
   → ∅ ⊢[ e ]∶ τ
@@ -152,6 +154,7 @@ value-⇜-value V-# (I-V V-#) = V-#
 ↦-progress {δ r e} (⊢-δ ⊢) with (↦-progress ⊢)
 ... | inj₁ V = inj₂ (e , (step (D-β-δ V) (T-β-δ V) C-∘))
 ... | inj₂ (e′ , step D T C) = inj₂ (δ r e′ , step (D-ξ-δ D) T (C-δ C))
+↦-progress {μ e} (⊢-μ ⊢ₑ) = inj₂ (applyₑ e 0 (μ e) , step D-β-μ T-β-μ C-∘)
 
 -- progress : ∀ {p a g l e τ}
 --   → ∅ ⊢[ e ]∶ τ
