@@ -156,7 +156,52 @@ value-⇜-value V-# (I-V V-#) = V-#
 ... | inj₂ (e′ , step D T C) = inj₂ (δ r e′ , step (D-ξ-δ D) T (C-δ C))
 ↦-progress {μ e} (⊢-μ ⊢ₑ) = inj₂ (applyₑ e 0 (μ e) , step D-β-μ T-β-μ C-∘)
 
--- progress : ∀ {p a g l e τ}
---   → ∅ ⊢[ e ]∶ τ
---   → ∃[ e′ ]((p , a , g , l) ⊢ e ⇥′ e′)
--- progress {p} {a} {g} {l} {e} ⊢ = {!!}
+-- The strong filtered-progress statement -- "for any well-typed e and
+-- any filter (p, a, g, l), there exists e′ such that e ⇥′ e′" -- does
+-- not hold:
+--
+--   * If the first action selection yields ⊳ (skip), the `step`
+--     constructor of ⇥′ cannot fire (it requires action ∥), and the
+--     `skip` constructor requires a prior derivation of e ⇥′ e′ which
+--     we have no way to construct from a non-value e. A program like
+--     `φ ($e, ⊳, ⋆) (1 `+ 2)` exhibits this: instrumentation places a
+--     priority-1 skip-residue around `1 `+ 2`, which overrides the
+--     default ∥ during action selection.
+--   * The sibling relation ⇥ in Dynamics.agda has forward-chained skip
+--     and handles the example above as skip;skip;skip;done. But the
+--     existential ∃[ e′ ](e ⇥ e′) is still not provable in general:
+--     under a skip-everything filter, a divergent program (using μ)
+--     produces an infinite chain of silent skips with no `done` or
+--     `step` to terminate the derivation -- correct semantics, but no
+--     finite Agda derivation.
+--
+-- What we can prove is single-iteration progress: for any well-typed
+-- e, either e is a value or the stepper can take exactly one full
+-- pipeline iteration (instrument, decompose, select action, transition,
+-- compose). The resulting action may be ∥ or ⊳; we make no commitment
+-- to which.
+
+filter-iteration : ∀ {p a g l e τ}
+  → ∅ ⊢[ e ]∶ τ
+  → e value
+    ⊎ ∃[ eᵢ ] ∃[ ε ] ∃[ e₀ ] ∃[ a′ ] ∃[ e₀′ ] ∃[ e′ ]
+         ( ((p , a , g , l) ⊢ e ⇝ eᵢ)
+         × (eᵢ ⇒ ε ⟨ e₀ ⟩)
+         × ((a , l) ⊢ ε ⊣ a′)
+         × (e₀ —→ e₀′)
+         × (e′ ⇐ (decay ε) ⟨ e₀′ ⟩)
+         )
+filter-iteration {p} {a} {g} {l} {e} ⊢ with e value?
+... | yes V = inj₁ V
+... | no ¬V
+    with ⇝-progress p a g l ⊢
+... | (eᵢ , I , ⊢ᵢ)
+    with ⇒-progress ⊢ᵢ
+... | ⇒-V Vᵢ = ⊥-elim (¬value-⇝-¬value ¬V I Vᵢ)
+... | ⇒-D {c = ε} {o = e₀} D
+    with ⊢⊣-progress a l D
+... | (a′ , A)
+    with →-progress ⊢ᵢ D
+... | (e₀′ , T)
+    with ⇐-progress′ ⊢ᵢ D T
+... | (e′ , C) = inj₂ (eᵢ , ε , e₀ , a′ , e₀′ , e′ , I , D , A , T , C)
