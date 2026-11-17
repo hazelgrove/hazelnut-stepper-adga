@@ -1,7 +1,6 @@
 module Base where
 
 open import Data.Nat using (ℕ)
-open import Data.Nat.Induction using (<′-wellFounded)
 open import Data.Product using (_×_)
 open import Relation.Nullary using (Dec; yes; no)
 
@@ -20,7 +19,7 @@ Filter  : Set
 Filter  = Pat × Act × Gas
 
 Residue : Set
-Residue = Act × Gas × ℕ
+Residue = Act × ℕ
 
 infix  5 ƛ_
 infixl 7 _`+_
@@ -41,11 +40,11 @@ data Pat where
   $e   : Pat
   $v   : Pat
   `_   : (i : ℕ) → Pat
-  ƛ_   : (e : Exp) → Pat
+  ƛ_   : (p : Pat) → Pat
   _`·_ : (l : Pat) → (r : Pat) → Pat
   #_   : (n : ℕ) → Pat
   _`+_ : (l : Pat) → (r : Pat) → Pat
-  μ    : (e : Exp) → Pat
+  μ    : (p : Pat) → Pat
 
 data _value : Exp → Set where
   V-ƛ : ∀ {e : Exp}
@@ -62,14 +61,3 @@ _value? : (e : Exp) → Dec (e value)
 φ f e value? = no (λ ())
 δ r e value? = no (λ ())
 μ e value? = no (λ ())
-
-data Val : Set where
-  #_ : (n : ℕ) → Val
-  ƛ_ : (e : Exp) → Val
-
-data _filter : Exp → Set where
-  F-φ : ∀ {f e}
-    → φ f e filter
-
-  F-δ : ∀ {r e}
-    → δ r e filter

@@ -10,98 +10,78 @@ matching.
 
 ## Requirements
 
-We have tested against:
+The development has been checked with the following versions.
 
-- **Agda 2.6.4.3**
-- **agda-stdlib 2.1**
-
-Other recent Agda versions should also work; nothing here is version-specific.
+- **Agda 2.6.4.1**
+- **agda-stdlib 2.0**
 
 ## Checking the development
 
-From the repository root, run:
+From the repository root, run
 
-```
-agda Progress.agda
-agda Preservation.agda
-agda Simulation.agda
-agda Determinism.agda
+```sh
+agda --safe All.agda
 ```
 
-Each invocation type-checks the corresponding module and all of its
-dependencies. There are no holes, no postulates, and no `--rewriting`
-extensions; a clean exit code means every theorem stated below has been
-fully verified.
+`All.agda` imports every module listed below. To check an individual proof
+and its dependencies, replace `All.agda` with its module filename.
 
 ## Repository layout
 
 | File | Contents |
 |---|---|
-| `Base.agda` | Syntax of expressions, patterns, values, actions (`⊳` for *step*, `∥` for *skip*), gases (`𝟙` for *one*, `⋆` for *all*), and the `value?` decision procedure. |
-| `Substitution.agda` | Variable insertion/shifting, capture-avoiding substitution `applyₑ`, and the `patternize` coercion from expressions to patterns. |
-| `Match.agda` | The `strip` operation and the structural pattern-matching judgment `_matches_`, with its decision procedure. Uses de Bruijn indices, so `α`-equivalence is built in. |
-| `Statics.agda` | Type grammar (`` `ℕ ``, `_`→_`) and typing judgments for expressions (`_⊢[_]∶_`), patterns (`_⊢<_>∶_`), and evaluation contexts (`_⊢⟨_⟩∶_`). |
-| `Dynamics.agda` | Evaluation contexts `Ctx`, the instruction transition `_—→_`, decomposition `_⇒_`, composition `_⇐_`, action selection `_⊢_⊣_`, instrumentation `_⊢_⇝_`, optimization `_⇴_`, the `decay` function, and finally the filtered stepping relation `_⊢_⇥_` (and the underlying unfiltered step `_↦_`, with reflexive–transitive closure `_↦*_`). |
-| `Preservation.agda` | Preservation for the filtered stepping relation. |
-| `Progress.agda` | Progress for the underlying step relation, and single-iteration progress for the filtered stepping pipeline. |
-| `Simulation.agda` | The similarity relation `_∼_` and the simulation theorem: every filtered step is simulated by a multi-step trace in the underlying calculus. |
-| `Determinism.agda` | Determinism of instrumentation, decomposition, composition, optimization, instruction transition, and filtered stepping. |
-| `Eq.agda` | Decidable equality of expressions, used by the matching decision procedure. |
+| `Base.agda` | Expressions, patterns, filters, residues, and the value judgment. |
+| `Substitution.agda` | Shifting, substitution, and the coercion `patternize` from expressions to patterns. |
+| `Match.agda` | Stripping filters and residues, structural pattern matching, and its decision procedure. |
+| `Ctx.agda` | Evaluation contexts and the function `compose` that fills the hole. |
+| `Decompose.agda` | Filter lookup and decomposition into a candidate redex and its context, with an action and level. |
+| `Recompose.agda` | Filling a candidate context with its redex recovers the input up to residues. |
+| `Transition.agda` | Reduction of a redex. |
+| `Step.agda` | The initial state `top` and the filtered stepping judgment. |
+| `Statics.agda` | Types and typing judgments for expressions and patterns. |
+| `Preservation.agda` | Type preservation for filtered steps. |
+| `Progress.agda` | Decomposition progress, finality of values, and transition progress. |
+| `Simulation.agda` | The unfiltered step relation and simulation of filtered steps. |
+| `Patternize.agda` | A pattern obtained by `patternize` matches exactly those expressions equal to its source after stripping. |
+| `All.agda` | Entry point for checking the full development. |
 
 ## Theorems
 
-The paper's metatheoretic results map to the following names in the
-development:
-
 | Paper | Statement | Agda name | Location |
 |---|---|---|---|
-| Theorem 1 (Preservation) | If `Γ ⊢ e : τ` and `e ⇥ e′`, then `Γ ⊢ e′ : τ`. | `preserve` | `Preservation.agda:206` |
-| Theorem 2 (Progress) | If `∅ ⊢ e : τ`, then `e` is a value or `∃ e′. e ↦ e′`. | `↦-progress` | `Progress.agda:136` |
-| Theorem 3 (Simulation) | If `e ⇥ e′`, then `strip e ↦* strip e′`. | `sim` | `Simulation.agda:239` |
-| Theorem 4 (Single-Iteration Progress) | If `∅ ⊢ e : τ`, then `e` is a value or one full filtered pipeline iteration exists. | `filter-iteration` | `Progress.agda:184` |
-
-The simulation theorem is stated in terms of a similarity relation `_∼_`
-(`Simulation.agda:14`) and packaged as a `Leg` (`Simulation.agda:150`)
-witnessing both the similarity of the targets and the multi-step trace; the
-strip-based formulation in the paper follows by `strip-∼` and `∼-strip`.
-
-In addition, `Determinism.agda` proves determinism of every intermediate
-relation used by the stepper (`⇝`, `⇒`, `⇐`, `⇴`, `→`, and `⇥`).
+| Preservation | If `∅ ⊢ e : τ` and `e ⇥ e′`, then `∅ ⊢ e′ : τ`. | `⇥-preserve` | [Preservation.agda](Preservation.agda#L191) |
+| Decomposition Progress | A well-typed closed expression is a value or admits a decomposition. Values admit no decomposition. | `progress`, `value-final` | [Progress.agda](Progress.agda#L21) |
+| Transition Progress | Every redex obtained by decomposing a well-typed closed expression admits a transition. | `⇛-progress` | [Progress.agda](Progress.agda#L55) |
+| Simulation | If `e ⇥ e′`, then `strip e ↦* strip e′`. | `sim` | [Simulation.agda](Simulation.agda#L188) |
 
 ## Notation: paper → Agda
 
 | Paper | Agda |
 |---|---|
 | Lambda abstraction `λx.e` | `ƛ e` (de Bruijn) |
-| Application `e₁(e₂)` | `e₁ `· e₂` |
+| Application `e₁(e₂)` | `` e₁ `· e₂ `` |
 | Natural literal `n` | `# n` |
-| Addition `e₁ + e₂` | `e₁ `+ e₂` |
+| Addition `e₁ + e₂` | `` e₁ `+ e₂ `` |
 | Fixpoint `μx.e` | `μ e` (de Bruijn) |
 | Filter `debug f in e` | `φ f e` where `f : Filter = Pat × Act × Gas` |
-| Residue ⟨r⟩ e | `δ r e` where `r : Residue = Act × Gas × ℕ` |
+| Residue with action `a` and level `l` around `e` | `δ (a , l) e` |
 | Action `step` / `skip` | `∥` / `⊳` |
 | Gas `one` / `all` | `𝟙` / `⋆` |
 | Pattern wildcards `$e` / `$v` | `$e` / `$v` |
-| `Strip(e)` | `strip e` |
-| `Decay(𝓔)` | `decay ε` |
-| Instrumentation `(p,a,g,l) ⊢ e ↝ e′` | `(p , a , g , l) ⊢ e ⇝ e′` |
-| Optimization `e ↝_opt e′` | `e ⇴ e′` |
-| Decomposition `e ⇒ 𝓔{e₀}` | `e ⇒ ε ⟨ e₀ ⟩` |
-| Composition `e ⇐ 𝓔{e₀}` | `e ⇐ ε ⟨ e₀ ⟩` |
-| Action selection `(a,l) ⊢ 𝓔 ⊣ a′` | `(a , l) ⊢ ε ⊣ a′` |
-| Instruction transition `e → e′` | `e —→ e′` |
-| Filtered step `e ⇉ⁿ e′` | `(p , a , g , l) ⊢ e ⇥ e′` |
-| Underlying step `e ↦ e′` | `e ↦ e′` |
-| Multi-step `e ↦* e′` | `e ↦* e′` |
-| Typing `Γ ⊢ e : τ` | `Γ ⊢[ e ]∶ τ` (expressions) / `Γ ⊢< p >∶ τ` (patterns) |
+| State `(a, lₐ, lᵣ, E)` | `state a lₐ lᵣ C` |
+| Action selection `lookup(Φ, e, s)` | `lookup Φ e s` |
+| Context–redex pair `E{r}` | `C ⟨ r ⟩` |
+| Decomposition | `(Φ , s) ⊢ e ⇛ C ⟨ r ⟩ ⊣ t` |
+| Filling a context `E[e]` | `compose C e` |
+| Instruction transition | `e —→ e′` |
+| Filtered step | `e ⇥ e′` |
+| Unfiltered step and its reflexive–transitive closure | `e ↦ e′` and `e ↦* e′` |
+| Typing | `Γ ⊢[ e ]∶ τ` (expressions) and `Γ ⊢< p >∶ τ` (patterns) |
 
 ## A note on representation
 
-The development uses **de Bruijn indices** throughout. As a result,
-`α`-equivalence holds definitionally: the pattern-matching rule `M-Lam` in
-the paper (`λx₁.e₁ ▷ λx₂.e₂` when `strip e₁ ≡ strip e₂`) is implemented in
-Agda as `(ƛ eₚ) matches (ƛ eₑ) when strip eₚ ≡ strip eₑ`, with no separate
-α-conversion. Substitution and pattern coercion are fused into the single
-function `applyₑ`/`applyₚ` to avoid intermediate ill-formed states (e.g.,
-shifting down a free variable). Termination of `instr` and `optimize` is
-established by well-founded recursion on expression size.
+The development uses **de Bruijn indices** for both expressions and
+patterns, so matching under a binder handles α-equivalence directly.
+The wildcard `$v` follows the same value judgment inside a binder body
+as elsewhere. The substitution functions `applyₑ` and `applyₚ` remove
+the substituted binder as they traverse an expression or pattern.

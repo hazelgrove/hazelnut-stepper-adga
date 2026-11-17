@@ -1,301 +1,191 @@
-open import Base
-open import Dynamics
-open import Match
-open import Statics
-open import Data.Sum using (_⊎_; inj₁; inj₂)
-open import Data.Product using (∃-syntax; _,_; _×_)
-open import Data.Nat using (ℕ; z≤n; s≤s)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; cong₂; subst; subst₂; sym)
-open import Relation.Nullary.Negation using (¬_)
-open import Data.Empty using (⊥-elim)
-
 module Simulation where
 
-data _∼_ : Exp → Exp → Set where
-  ∼` : ∀ {x}
-    → (` x) ∼ (` x)
+open import Base
+open import Ctx
+open import Match using (strip; _matches?_)
+open import Decompose
+open import Substitution using (↑ₑ; applyₙ; applyₑ)
+open import Transition
+open import Step
+open import Data.List using ([]; _∷_; length)
+open import Data.Nat using (suc; <-cmp; _≤?_; s≤s)
+open import Data.Product using (_,_)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Relation.Binary using (tri<; tri≈; tri>)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
+  using (Star; ε; _◅_; _◅◅_)
+open import Relation.Binary.PropositionalEquality
+  using (_≡_; refl; cong; cong₂; subst; sym; trans)
+open import Relation.Nullary using (yes; no)
 
-  ∼ƛ : ∀ {e e†}
-    → e ∼ e†
-    → (ƛ e) ∼ (ƛ e†)
+infix 0 _⊢_⇒_
 
-  _∼·_ : ∀ {eₗ eᵣ eₗ† eᵣ†}
-    → (Rₗ : eₗ ∼ eₗ†)
-    → (Rᵣ : eᵣ ∼ eᵣ†)
-    → (eₗ `· eᵣ) ∼ (eₗ† `· eᵣ†)
+data _⊢_⇒_ : Ctx → Exp → Obj → Set where
+  D-ξ-·ₗ : ∀ {C eₗ eᵣ o} → (C ·ₗ eᵣ) ⊢ eₗ ⇒ o → C ⊢ eₗ `· eᵣ ⇒ o
+  D-ξ-·ᵣ : ∀ {C eₗ eᵣ o} → (eₗ ·ᵣ C) ⊢ eᵣ ⇒ o → C ⊢ eₗ `· eᵣ ⇒ o
+  D-β-·  : ∀ {C vₗ vᵣ} → vₗ value → vᵣ value → C ⊢ vₗ `· vᵣ ⇒ C ⟨ vₗ `· vᵣ ⟩
+  D-ξ-+ₗ : ∀ {C eₗ eᵣ o} → (C +ₗ eᵣ) ⊢ eₗ ⇒ o → C ⊢ eₗ `+ eᵣ ⇒ o
+  D-ξ-+ᵣ : ∀ {C eₗ eᵣ o} → (eₗ +ᵣ C) ⊢ eᵣ ⇒ o → C ⊢ eₗ `+ eᵣ ⇒ o
+  D-β-+  : ∀ {C vₗ vᵣ} → vₗ value → vᵣ value → C ⊢ vₗ `+ vᵣ ⇒ C ⟨ vₗ `+ vᵣ ⟩
+  D-β-μ  : ∀ {C e} → C ⊢ μ e ⇒ C ⟨ μ e ⟩
 
-  ∼# : ∀ {n}
-    → (# n) ∼ (# n)
+infix 0 _⊢_↦_
 
-  _∼+_ : ∀ {eₗ eᵣ eₗ† eᵣ†}
-    → eₗ ∼ eₗ†
-    → eᵣ ∼ eᵣ†
-    → (eₗ `+ eᵣ) ∼ (eₗ† `+ eᵣ†)
+data _⊢_↦_ : Ctx → Exp → Exp → Set where
+  J-Step : ∀ {K e C r r′}
+    → (D : K ⊢ e ⇒ C ⟨ r ⟩)
+    → (T : r —→ r′)
+    → K ⊢ e ↦ compose C r′
 
-  ∼φ : ∀ {f e e†}
-    → e ∼ e†
-    → (φ f e) ∼ e†
+infix 0 _↦_ _↦*_
 
-  ∼δ : ∀ {r e e†}
-    → e ∼ e†
-    → (δ r e) ∼ e†
+_↦_ : Exp → Exp → Set
+e ↦ e′ = ∘ ⊢ e ↦ e′
 
-  ∼μ : ∀ {e e†}
-    → e ∼ e†
-    → (μ e) ∼ (μ e†)
+_↦*_ : Exp → Exp → Set
+_↦*_ = Star _↦_
 
--- ⇝-⇒ : ∀ {p a g l} {e : Exp} {c o}
---   → (p , a , g , l) ⊢ e ⇝ eᵢ
---   → eᵢ ⇒ c ⟨ o ⟩
---   → e ⇒ c ⟨ o ⟩
--- ⇝-⇒
+stripᶜ : Ctx → Ctx
+stripᶜ ∘        = ∘
+stripᶜ (c ·ₗ r) = stripᶜ c ·ₗ strip r
+stripᶜ (l ·ᵣ c) = strip l ·ᵣ stripᶜ c
+stripᶜ (c +ₗ r) = stripᶜ c +ₗ strip r
+stripᶜ (l +ᵣ c) = strip l +ᵣ stripᶜ c
+stripᶜ (φ f c)  = stripᶜ c
+stripᶜ (δ r c)  = stripᶜ c
 
-strip-∼ : ∀ e
-  → e ∼ strip e
-strip-∼ (` i) = ∼`
-strip-∼ (ƛ e) = ∼ƛ (strip-∼ e)
-strip-∼ (eₗ `· eᵣ) = strip-∼ eₗ ∼· strip-∼ eᵣ
-strip-∼ (# n) = ∼#
-strip-∼ (eₗ `+ eᵣ) = strip-∼ eₗ ∼+ strip-∼ eᵣ
-strip-∼ (φ f e) = ∼φ (strip-∼ e)
-strip-∼ (δ r e) = ∼δ (strip-∼ e)
-strip-∼ (μ e) = ∼μ (strip-∼ e)
+strip-compose : ∀ C e → strip (compose C e) ≡ compose (stripᶜ C) (strip e)
+strip-compose ∘        e = refl
+strip-compose (c ·ₗ r) e = strip-compose c _
+strip-compose (l ·ᵣ c) e = strip-compose c _
+strip-compose (c +ₗ r) e = strip-compose c _
+strip-compose (l +ᵣ c) e = strip-compose c _
+strip-compose (φ f c)  e = strip-compose c _
+strip-compose (δ r c)  e = strip-compose c _
 
-∼-functional : ∀ {e e† e†′}
-  → e ∼ e†
-  → e ∼ e†′
-  → e† ≡ e†′
-∼-functional ∼` ∼` = refl
-∼-functional (∼ƛ R) (∼ƛ R′) rewrite ∼-functional R R′ = refl
-∼-functional (Rₗ ∼· Rᵣ) (Rₗ′ ∼· Rᵣ′) rewrite ∼-functional Rₗ Rₗ′ rewrite ∼-functional Rᵣ Rᵣ′ = refl
-∼-functional ∼# ∼# = refl
-∼-functional (Rₗ ∼+ Rᵣ) (Rₗ′ ∼+ Rᵣ′) rewrite ∼-functional Rₗ Rₗ′ rewrite ∼-functional Rᵣ Rᵣ′ = refl
-∼-functional (∼φ R) (∼φ R′) rewrite ∼-functional R R′ = refl
-∼-functional (∼δ R) (∼δ R′) rewrite ∼-functional R R′ = refl
-∼-functional (∼μ R) (∼μ R′) rewrite ∼-functional R R′ = refl
+strip-value : ∀ {v} → v value → strip v value
+strip-value V-ƛ = V-ƛ
+strip-value V-# = V-#
 
-∼-strip : ∀ {e e†}
-  → e ∼ e†
-  → e† ≡ strip e
-∼-strip ∼` = refl
-∼-strip (∼ƛ R) = cong ƛ_ (∼-strip R)
-∼-strip (Rₗ ∼· Rᵣ) = cong₂ _`·_ (∼-strip Rₗ) (∼-strip Rᵣ)
-∼-strip ∼# = refl
-∼-strip (Rₗ ∼+ Rᵣ) = cong₂ _`+_ (∼-strip Rₗ) (∼-strip Rᵣ)
-∼-strip (∼φ R) = ∼-strip R
-∼-strip (∼δ R) = ∼-strip R
-∼-strip (∼μ R) = cong μ (∼-strip R)
+↑ₑ-strip : ∀ c d e → strip (↑ₑ c d e) ≡ ↑ₑ c d (strip e)
+↑ₑ-strip c d (` x)    = refl
+↑ₑ-strip c d (ƛ e)    = cong ƛ_ (↑ₑ-strip (suc c) d e)
+↑ₑ-strip c d (l `· r) = cong₂ _`·_ (↑ₑ-strip c d l) (↑ₑ-strip c d r)
+↑ₑ-strip c d (# n)    = refl
+↑ₑ-strip c d (l `+ r) = cong₂ _`+_ (↑ₑ-strip c d l) (↑ₑ-strip c d r)
+↑ₑ-strip c d (φ f e)  = ↑ₑ-strip c d e
+↑ₑ-strip c d (δ r e)  = ↑ₑ-strip c d e
+↑ₑ-strip c d (μ e)    = cong μ (↑ₑ-strip (suc c) d e)
 
-∼-trans : ∀ {a b c}
-  → a ∼ b
-  → b ∼ c
-  → a ∼ c
-∼-trans ∼` ∼` = ∼`
-∼-trans (∼ƛ R₀) (∼ƛ R₁) = (∼ƛ (∼-trans R₀ R₁))
-∼-trans (a∼bₗ ∼· a∼bᵣ) (b∼cₗ ∼· b∼cᵣ) = ∼-trans a∼bₗ b∼cₗ ∼· ∼-trans a∼bᵣ b∼cᵣ
-∼-trans ∼# ∼# = ∼#
-∼-trans (a∼bₗ ∼+ a∼bᵣ) (b∼cₗ ∼+ b∼cᵣ) = ∼-trans a∼bₗ b∼cₗ ∼+ ∼-trans a∼bᵣ b∼cᵣ
-∼-trans (∼φ a∼b) b∼c = ∼φ (∼-trans a∼b b∼c)
-∼-trans (∼δ a∼b) b∼c = ∼δ (∼-trans a∼b b∼c)
-∼-trans (∼μ a∼b) (∼μ b∼c) = ∼μ (∼-trans a∼b b∼c)
+applyₙ-strip : ∀ i x v → strip (applyₙ i x v) ≡ applyₙ i x (strip v)
+applyₙ-strip i x v with <-cmp i x
+applyₙ-strip i       x v | tri< _ _ _       = refl
+applyₙ-strip i       x v | tri≈ _ _ _       = refl
+applyₙ-strip (suc i) x v | tri> _ _ (s≤s _) = refl
 
-⇝-∼ : ∀ {p a g l e eᵢ eₛ}
-  → (p , a , g , l) ⊢ e ⇝ eᵢ
-  → eᵢ ∼ eₛ
-  → e ∼ eₛ
-⇝-∼ (I-V V-ƛ) (∼ƛ R) = ∼ƛ R
-⇝-∼ (I-V V-#) ∼# = ∼#
-⇝-∼ I-` ∼` = ∼`
-⇝-∼ (I-·-⊤ M Iₗ Iᵣ) (∼δ (Rₗ ∼· Rᵣ)) = (⇝-∼ Iₗ Rₗ) ∼· ⇝-∼ Iᵣ Rᵣ
-⇝-∼ (I-·-⊥ ¬M Iₗ Iᵣ) (Rₗ ∼· Rᵣ) = (⇝-∼ Iₗ Rₗ) ∼· (⇝-∼ Iᵣ Rᵣ)
-⇝-∼ (I-+-⊤ M Iₗ Iᵣ) (∼δ (Rₗ ∼+ Rᵣ)) = (⇝-∼ Iₗ Rₗ) ∼+ ⇝-∼ Iᵣ Rᵣ
-⇝-∼ (I-+-⊥ ¬M Iₗ Iᵣ) (Rₗ ∼+ Rᵣ) = (⇝-∼ Iₗ Rₗ) ∼+ (⇝-∼ Iᵣ Rᵣ)
-⇝-∼ (I-φ I₀ I₁) (∼φ R) = ∼φ (⇝-∼ I₀ (⇝-∼ I₁ R))
-⇝-∼ (I-δ I) (∼δ R) = ∼δ (⇝-∼ I R)
-⇝-∼ (I-μ) (∼μ R) = ∼μ R
--- ⇝-∼ (I-μ-⊤ M I) (∼δ (∼μ R)) = ∼μ (⇝-∼ I R)
--- ⇝-∼ (I-μ-⊥ ¬M I) (∼μ R) = ∼μ (⇝-∼ I R)
+applyₑ-strip : ∀ e x v → strip (applyₑ e x v) ≡ applyₑ (strip e) x (strip v)
+applyₑ-strip (` i)    x v = applyₙ-strip i x v
+applyₑ-strip (ƛ e)    x v =
+  cong ƛ_ (trans (applyₑ-strip e (suc x) (↑ₑ 0 1 v))
+                 (cong (applyₑ (strip e) (suc x)) (↑ₑ-strip 0 1 v)))
+applyₑ-strip (l `· r) x v = cong₂ _`·_ (applyₑ-strip l x v) (applyₑ-strip r x v)
+applyₑ-strip (# n)    x v = refl
+applyₑ-strip (l `+ r) x v = cong₂ _`+_ (applyₑ-strip l x v) (applyₑ-strip r x v)
+applyₑ-strip (φ f e)  x v = applyₑ-strip e x v
+applyₑ-strip (δ r e)  x v = applyₑ-strip e x v
+applyₑ-strip (μ e)    x v =
+  cong μ (trans (applyₑ-strip e (suc x) (↑ₑ 0 1 v))
+                (cong (applyₑ (strip e) (suc x)) (↑ₑ-strip 0 1 v)))
 
-⇜-∼ : ∀ {p a g l e eᵢ eₛ}
-  → (p , a , g , l) ⊢ e ⇝ eᵢ
-  → e ∼ eₛ
-  → eᵢ ∼ eₛ
-⇜-∼ (I-V V-ƛ) (∼ƛ R) = ∼ƛ R
-⇜-∼ (I-V V-#) ∼# = ∼#
-⇜-∼ I-` ∼` = ∼`
-⇜-∼ (I-·-⊤ M Iₗ Iᵣ) (Rₗ ∼· Rᵣ) = ∼δ ((⇜-∼ Iₗ Rₗ) ∼· (⇜-∼ Iᵣ Rᵣ))
-⇜-∼ (I-·-⊥ ¬M Iₗ Iᵣ) (Rₗ ∼· Rᵣ) = (⇜-∼ Iₗ Rₗ) ∼· (⇜-∼ Iᵣ Rᵣ)
-⇜-∼ (I-+-⊤ M Iₗ Iᵣ) (Rₗ ∼+ Rᵣ) = ∼δ ((⇜-∼ Iₗ Rₗ) ∼+ (⇜-∼ Iᵣ Rᵣ))
-⇜-∼ (I-+-⊥ ¬M Iₗ Iᵣ) (Rₗ ∼+ Rᵣ) = (⇜-∼ Iₗ Rₗ) ∼+ (⇜-∼ Iᵣ Rᵣ)
-⇜-∼ (I-φ I₀ I₁) (∼φ R) = ∼φ (⇜-∼ I₁ (⇜-∼ I₀ R))
-⇜-∼ (I-δ I) (∼δ R) = ∼δ (⇜-∼ I R)
-⇜-∼ (I-μ) (∼μ R) = ∼μ R
--- ⇜-∼ (I-μ-⊤ M I) (∼μ R) = ∼δ (∼μ (⇜-∼ I R))
--- ⇜-∼ (I-μ-⊥ ¬M I) (∼μ R) = (∼μ (⇜-∼ I R))
+lookup-stripᶜ : ∀ Φ e s → stripᶜ (ctx (lookup Φ e s)) ≡ stripᶜ (ctx s)
+lookup-stripᶜ [] e s = refl
+lookup-stripᶜ ((p , b , g) ∷ Φ) e (state a l i C) with suc (length Φ) ≤? i
+... | yes _ = refl
+... | no  _ with p matches? e
+...   | no  _ = lookup-stripᶜ Φ e (state a l i C)
+...   | yes _ with g | bump (a , l) (b , suc (length Φ))
+...     | 𝟙 | (a′ , l′) = lookup-stripᶜ Φ e (state a′ l′ i C)
+...     | ⋆ | (a′ , l′) = refl
 
-⇴-∼ : ∀ {eᵢ eₒ eₛ}
-  → eᵢ ⇴ eₒ
-  → eᵢ ∼ eₛ
-  → eₒ ∼ eₛ
-⇴-∼ O-` ∼` = ∼`
-⇴-∼ (O-V V) ∼ = ∼
-⇴-∼ (O-· Oₗ Oᵣ) (∼ₗ ∼· ∼ᵣ) = (⇴-∼ Oₗ ∼ₗ) ∼· (⇴-∼ Oᵣ ∼ᵣ)
-⇴-∼ (O-+ Oₗ Oᵣ) (∼ₗ ∼+ ∼ᵣ) = (⇴-∼ Oₗ ∼ₗ) ∼+ (⇴-∼ Oᵣ ∼ᵣ)
-⇴-∼ (O-φ O) (∼φ ∼) = ∼φ (⇴-∼ O ∼)
-⇴-∼ (O-δᵢ _ O) (∼δ ∼) = ⇴-∼ O ∼
-⇴-∼ (O-δₒ _ O) (∼δ (∼δ ∼)) = ⇴-∼ O (∼δ ∼)
-⇴-∼ (O-δ _ O) (∼δ ∼) = ∼δ (⇴-∼ O ∼)
-⇴-∼ (O-μ) (∼μ ∼) = ∼μ ∼
+lookup-stripᶜ′ : ∀ Φ {e s s′}
+  → lookup Φ e s ≡ s′ → stripᶜ (ctx s′) ≡ stripᶜ (ctx s)
+lookup-stripᶜ′ Φ {e} {s} L =
+  subst (λ C′ → stripᶜ C′ ≡ stripᶜ (ctx s)) (cong ctx L) (lookup-stripᶜ Φ e s)
 
-data Leg (e′ : Exp) (e† : Exp) : Set where
-  leg : ∀ {e′†}
-    → e′ ∼ e′†
-    → e† ↦* e′†
-    → Leg e′ e†
+keep-stripᶜ : ∀ i r C → stripᶜ (keep i r C) ≡ stripᶜ C
+keep-stripᶜ i (b , n) C with n ≤? i
+... | yes _ = refl
+... | no  _ = refl
 
-step-step : ∀ {e e′ e₀ e₀′ ε₀}
-  → (D : e ⇒ ε₀ ⟨ e₀ ⟩)
-  → (T : e₀ —→ e₀′)
-  → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
-  → (strip e) ↦* (strip e′)
-step-step (D-ξ-·ₗ D) T (C-·ₗ C) with step-step D T C
-step-step (D-ξ-·ₗ D) T (C-·ₗ C) | eₗ↦*eₗ′ = ↦*-cong-·ᵣ eₗ↦*eₗ′
-step-step (D-ξ-·ᵣ V D) T (C-·ᵣ C) with step-step D T C
-step-step (D-ξ-·ᵣ V D) T (C-·ᵣ C) | eᵣ↦*eᵣ′ = ↦*-cong-·ₗ (strip-value V) eᵣ↦*eᵣ′
-step-step
-  (D-β-· V-ƛ Vᵣ)
-  (T-β-· {v = v} {e = e} V)
-  C-∘
-  rewrite sym (applyₑ-strip e 0 v)
-  = next (step (D-β-· V-ƛ (strip-value V)) (T-β-· (strip-value V)) C-∘) init
-step-step (D-ξ-+ₗ D) T (C-+ₗ C) = ↦*-cong-+ᵣ (step-step D T C)
-step-step (D-ξ-+ᵣ V D) T (C-+ᵣ C) = ↦*-cong-+ₗ (strip-value V) (step-step D T C)
-step-step (D-β-+ V-# V-#) T-β-+ C-∘ = next (step (D-β-+ V-# V-#) T-β-+ C-∘) init
-step-step (D-ξ-φ D) T (C-φ C) = step-step D T C
-step-step (D-β-φ V) (T-β-φ V₁) C-∘ = init
-step-step (D-ξ-δ {a , 𝟙 , l} D) T C = step-step D T C
-step-step (D-ξ-δ {a , ⋆ , l} D) T (C-δ C) = step-step D T C
-step-step (D-β-δ V) (T-β-δ V₁) C-∘ = init
-step-step
-  (D-β-μ {e = e})
-  (T-β-μ)
-  C-∘
-  rewrite sym (applyₑ-strip e 0 (μ e))
-  = next (step D-β-μ T-β-μ C-∘) init
+Sim : Ctx → Exp → Exp → Set
+Sim K e e′ = (e′ ≡ compose K e) ⊎ (K ⊢ e ↦ e′)
 
-instr-step : ∀ {p a g l e e′ eᵢ eₒ}
-  → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-  → (O : eᵢ ⇴ eₒ)
-  → (strip eₒ) ↦* (strip e′)
-  → (strip e) ↦* (strip e′)
-instr-step (I-V V) (O-V V₁) S = S
-instr-step I-` O-` S = S
-instr-step (I-·-⊤ {eₗ = eₗ} {eᵣ = eᵣ} {eₗ′ = eₗ′} {eᵣ′ = eᵣ′} M Iₗ Iᵣ) (O-δ _ O) S
-  rewrite ∼-strip (⇜-∼ Iₗ (strip-∼ eₗ))
-  rewrite ∼-strip (⇜-∼ Iᵣ (strip-∼ eᵣ))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (eₗ′ `· eᵣ′)))
-  = S
-instr-step (I-·-⊥ {eₗ = eₗ} {eᵣ = eᵣ} {eₗ′ = eₗ′} {eᵣ′ = eᵣ′} ¬M Iₗ Iᵣ) O S
-  rewrite ∼-strip (⇜-∼ Iₗ (strip-∼ eₗ))
-  rewrite ∼-strip (⇜-∼ Iᵣ (strip-∼ eᵣ))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (eₗ′ `· eᵣ′)))
-  = S
-instr-step (I-+-⊤ {p} {a} {g} {l} {eₗ = eₗ} {eᵣ = eᵣ} {eₗ′ = eₗ′} {eᵣ′ = eᵣ′} M Iₗ Iᵣ) O S
-  rewrite ∼-strip (⇜-∼ Iₗ (strip-∼ eₗ))
-  rewrite ∼-strip (⇜-∼ Iᵣ (strip-∼ eᵣ))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (δ (a , g , l) (eₗ′ `+ eᵣ′))))
-  = S
-instr-step (I-+-⊥ {eₗ = eₗ} {eᵣ = eᵣ} {eₗ′ = eₗ′} {eᵣ′ = eᵣ′} ¬M Iₗ Iᵣ) O S
-  rewrite ∼-strip (⇜-∼ Iₗ (strip-∼ eₗ))
-  rewrite ∼-strip (⇜-∼ Iᵣ (strip-∼ eᵣ))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (eₗ′ `+ eᵣ′)))
-  = S
-instr-step (I-φ {p = p} {a} {g} {e = e} {e′ = e′} {e″ = e″} I₀ I₁) O S
-  rewrite ∼-strip (⇜-∼ I₀ (strip-∼ e))
-  rewrite ∼-strip (⇜-∼ I₁ (strip-∼ e′))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (φ (p , a , g) e″)))
-  = S
-instr-step (I-δ {a = a} {g} {l} {e = e} {e′ = e′} I) O S
-  rewrite ∼-strip (⇜-∼ I (strip-∼ e))
-  rewrite ∼-strip (⇴-∼ O (strip-∼ (δ (a , g , l) e′)))
-  = S
--- instr-step (I-μ-⊤ {a = a} {g} {l} {e = e} {e′ = e′} M I) O S
---   rewrite ∼-strip (⇜-∼ I (strip-∼ e))
---   rewrite ∼-strip (⇴-∼ O (strip-∼ (δ (a , g , l) (μ e′))))
---   = S
--- instr-step (I-μ-⊥ {e = e} {e′ = e′} ¬M I) O S
---   rewrite ∼-strip (⇜-∼ I (strip-∼ e))
---   rewrite ∼-strip (⇴-∼ O (strip-∼ (μ e′)))
---   = S
-instr-step (I-μ) (O-μ) S = S
+private
+  retarget : ∀ {K K′ e e′} → K ≡ K′ → Sim K e e′ → Sim K′ e e′
+  retarget refl s = s
 
-step-trans : ∀ {e e′ e″}
-  → e ↦* e′
-  → e′ ↦* e″
-  → e ↦* e″
-step-trans init K′ = K′
-step-trans (next S K) K′ = next S (step-trans K K′)
+  under-·ₗ : ∀ {K e r e′} → Sim (K ·ₗ r) e e′ → Sim K (e `· r) e′
+  under-·ₗ (inj₁ eq) = inj₁ eq
+  under-·ₗ (inj₂ (J-Step D T)) = inj₂ (J-Step (D-ξ-·ₗ D) T)
 
-sim : ∀ {p a g l} {e e† e′ : Exp}
-  → e ∼ e†
-  → (p , a , g , l) ⊢ e ⇥ e′
-  → Leg e′ e†
-sim ∼` (step I-` O-` () A T C)
-sim ∼` (step I-` (O-V V) () A T C)
-sim ∼` (skip I-` O-` () A T C S)
-sim ∼` (skip I-` (O-V V) () A T C S)
-sim (∼ƛ R) (step (I-V V-ƛ) (O-V V-ƛ) () A T C)
-sim (∼ƛ R) (skip (I-V V-ƛ) (O-V V-ƛ) () A T C S)
-sim (∼ƛ R) (done V-ƛ) = leg (∼ƛ R) init
-sim (_∼·_ Rₗ Rᵣ) (step {e′ = e′} I O D A T C)
-    rewrite ∼-strip Rₗ
-    rewrite ∼-strip Rᵣ
-    = leg (strip-∼ e′) (instr-step {e′ = e′} I O (step-step D T C))
-sim (Rₗ ∼· Rᵣ) (skip {e′ = e′} {e″ = e″} I O D A T C K)
-    rewrite ∼-strip Rₗ
-    rewrite ∼-strip Rᵣ
-    with sim (strip-∼ e′) K
-... | leg R′ S′
-    rewrite ∼-strip R′
-    = leg (strip-∼ e″) (step-trans (instr-step {e′ = e′} I O (step-step D T C)) S′)
-sim ∼# (step (I-V V-#) (O-V V-#) () A T C)
-sim ∼# (skip (I-V V-#) (O-V V-#) () A T C S)
-sim ∼# (done V-#) = leg ∼# init
-sim (_∼+_ Rₗ Rᵣ) (step {e′ = e′} I O D A T C)
-    rewrite ∼-strip Rₗ
-    rewrite ∼-strip Rᵣ
-    = leg (strip-∼ e′) (instr-step {e′ = e′} I O (step-step D T C))
-sim (Rₗ ∼+ Rᵣ) (skip {e′ = e′} {e″ = e″} I O D A T C K)
-    rewrite ∼-strip Rₗ
-    rewrite ∼-strip Rᵣ
-    with sim (strip-∼ e′) K
-... | leg R′ S′
-    rewrite ∼-strip R′
-    = leg (strip-∼ e″) (step-trans (instr-step {e′ = e′} I O (step-step D T C)) S′)
-sim (∼φ R) (step {e′ = e′} I O D A T C)
-    rewrite ∼-strip R
-    = leg (strip-∼ e′) (instr-step {e′ = e′} I O (step-step D T C))
-sim (∼φ R) (skip {e′ = e′} {e″ = e″} I O D A T C K)
-    rewrite ∼-strip R
-    with sim (strip-∼ e′) K
-... | leg R′ S′
-    rewrite ∼-strip R′
-    = leg (strip-∼ e″) (step-trans (instr-step {e′ = e′} I O (step-step D T C)) S′)
-sim (∼δ R) (step {e′ = e′} I O D A T C)
-    rewrite ∼-strip R
-    = leg (strip-∼ e′) (instr-step {e′ = e′} I O (step-step D T C))
-sim (∼δ R) (skip {e′ = e′} {e″ = e″} I O D A T C K)
-    rewrite ∼-strip R
-    with sim (strip-∼ e′) K
-... | leg R′ S′
-    rewrite ∼-strip R′
-    = leg (strip-∼ e″) (step-trans (instr-step {e′ = e′} I O (step-step D T C)) S′)
-sim (∼μ R) (step {e′ = e′} I O D A T C)
-    rewrite ∼-strip R
-    = leg (strip-∼ e′) (instr-step {e′ = e′} I O (step-step D T C))
-sim (∼μ R) (skip {e′ = e′} {e″ = e″} I O D A T C K)
-    rewrite ∼-strip R
-    with sim (strip-∼ e′) K
-... | leg R′ S′
-    rewrite ∼-strip R′
-    = leg (strip-∼ e″) (step-trans (instr-step {e′ = e′} I O (step-step D T C)) S′)
+  under-·ᵣ : ∀ {K l e e′} → Sim (l ·ᵣ K) e e′ → Sim K (l `· e) e′
+  under-·ᵣ (inj₁ eq) = inj₁ eq
+  under-·ᵣ (inj₂ (J-Step D T)) = inj₂ (J-Step (D-ξ-·ᵣ D) T)
+
+  under-+ₗ : ∀ {K e r e′} → Sim (K +ₗ r) e e′ → Sim K (e `+ r) e′
+  under-+ₗ (inj₁ eq) = inj₁ eq
+  under-+ₗ (inj₂ (J-Step D T)) = inj₂ (J-Step (D-ξ-+ₗ D) T)
+
+  under-+ᵣ : ∀ {K l e e′} → Sim (l +ᵣ K) e e′ → Sim K (l `+ e) e′
+  under-+ᵣ (inj₁ eq) = inj₁ eq
+  under-+ᵣ (inj₂ (J-Step D T)) = inj₂ (J-Step (D-ξ-+ᵣ D) T)
+
+  β-· : ∀ {K e v} → v value → Sim K (strip (ƛ e) `· strip v) (compose K (strip (applyₑ e 0 v)))
+  β-· {K} {e} {v} V =
+    inj₂ (subst (λ x → K ⊢ strip (ƛ e) `· strip v ↦ compose K x)
+      (sym (applyₑ-strip e 0 v))
+      (J-Step (D-β-· V-ƛ (strip-value V)) (T-β-· {e = strip e} (strip-value V))))
+
+  β-μ : ∀ {K e} → Sim K (μ (strip e)) (compose K (strip (applyₑ e 0 (μ e))))
+  β-μ {K} {e} =
+    inj₂ (subst (λ x → K ⊢ μ (strip e) ↦ compose K x)
+      (sym (applyₑ-strip e 0 (μ e)))
+      (J-Step D-β-μ (T-β-μ {e = strip e})))
+
+⇛-sim : ∀ {Φ s e C′ r r′ t}
+  → (Φ , s) ⊢ e ⇛ C′ ⟨ r ⟩ ⊣ t
+  → r —→ r′
+  → Sim (stripᶜ (ctx s)) (strip e) (compose (stripᶜ C′) (strip r′))
+⇛-sim {Φ} (D-ξ-·ₗ {eᵣ = eᵣ} L D) T =
+  under-·ₗ (retarget (cong (_·ₗ strip eᵣ) (lookup-stripᶜ′ Φ L)) (⇛-sim D T))
+⇛-sim {Φ} (D-ξ-·ᵣ {eₗ = eₗ} L D) T =
+  under-·ᵣ (retarget (cong (strip eₗ ·ᵣ_) (lookup-stripᶜ′ Φ L)) (⇛-sim D T))
+⇛-sim {Φ} (D-β-· _ _ L) (T-β-· {e = e} V) =
+  retarget (lookup-stripᶜ′ Φ L) (β-· {e = e} V)
+⇛-sim {Φ} (D-ξ-+ₗ {eᵣ = eᵣ} L D) T =
+  under-+ₗ (retarget (cong (_+ₗ strip eᵣ) (lookup-stripᶜ′ Φ L)) (⇛-sim D T))
+⇛-sim {Φ} (D-ξ-+ᵣ {eₗ = eₗ} L D) T =
+  under-+ᵣ (retarget (cong (strip eₗ +ᵣ_) (lookup-stripᶜ′ Φ L)) (⇛-sim D T))
+⇛-sim {Φ} (D-β-+ _ _ L) T-β-+ =
+  retarget (lookup-stripᶜ′ Φ L) (inj₂ (J-Step (D-β-+ V-# V-#) T-β-+))
+⇛-sim (D-ξ-φ D) T = ⇛-sim D T
+⇛-sim (D-β-φ _) (T-β-φ _) = inj₁ refl
+⇛-sim {s = s} (D-ξ-δ {b = b} {n = n} _ D) T =
+  retarget (keep-stripᶜ (ins-lvl s) (b , n) (ctx s)) (⇛-sim D T)
+⇛-sim (D-β-δ _ _) (T-β-δ _) = inj₁ refl
+⇛-sim {Φ} (D-β-μ {e = e} L) T-β-μ = retarget (lookup-stripᶜ′ Φ L) (β-μ {e = e})
+
+transition-sim : ∀ {e C r r′ t}
+  → top ⊢ e ⇛ C ⟨ r ⟩ ⊣ t
+  → r —→ r′
+  → strip e ↦* strip (compose C r′)
+transition-sim {C = C} {r′ = r′} D T
+  rewrite strip-compose C r′
+  with ⇛-sim D T
+... | inj₁ eq rewrite eq = ε
+... | inj₂ S = S ◅ ε
+
+sim : ∀ {e e′} → e ⇥ e′ → strip e ↦* strip e′
+sim (S-Step D _ T) = transition-sim D T
+sim (S-Skip D T S) = transition-sim D T ◅◅ sim S
+sim (S-Value _) = ε
