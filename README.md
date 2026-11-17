@@ -1,107 +1,46 @@
-# Filtered Stepper Calculus — Agda Mechanization
+# Agda mechanization
 
-This repository contains the Agda mechanization of the *Filtered Stepper
-Calculus* described in the paper *Practical Algebraic Stepping with Scoped
-Filters*. The calculus extends the simply-typed lambda calculus with natural
-numbers, addition, and a fixpoint operator with two new expression forms — a
-user-written `filter` and an internal `residue` — that together let the
-stepper hide or show small-step reductions based on lightweight pattern
-matching.
+Mechanization of the stepper's core calculus, following the notation and
+conventions of the earlier `hazelnut-stepper-agda` development: de Bruijn
+indices, `ƛ_`/`` `_ ``/`φ`/`δ`/`μ`, `$e`/`$v`, and `M-*` rule names.
 
-## Requirements
+A pattern lambda has a *pattern* body, so `$e` and `$v` can appear under a
+binder. The value wildcard `$v` matches only values, ignoring filter and
+residue wrappers; it
+does not match variables, including parameters in a function body. Matching
+needs no binder context: de Bruijn indices retain alpha-equivalence for
+structural variable patterns.
 
-We have tested against:
+Decomposition threads a `State` record with fields `act`, `act-lvl`,
+`ins-lvl`, and `ctx`. The filter stack `Φ` stays separate, and
+`lookup : Filters → Exp → State → State` updates this state when searching
+the filters. The record carries no proof obligations or restrictions on
+its fields; `bump` and `keep` remain separate helpers.
+`bump` compares two action-priority pairs and keeps the first pair when
+their priorities are equal.
+Decomposition rules and their metatheorems quantify over states directly,
+using field projections and record updates as the traversal descends.
 
-- **Agda 2.6.4.3**
-- **agda-stdlib 2.1**
+| Module         | Contents                                                        |
+|----------------|-----------------------------------------------------------------|
+| `Base`         | Syntax of expressions, patterns, filters, residues; values      |
+| `Substitution` | Shifting, `patternize`, substitution, `applyₑ`                 |
+| `Ctx`          | Evaluation contexts, read hole-first; `compose`                 |
+| `Match`        | `strip`, `strip-δ`, `p matches e`, matching decision             |
+| `Decompose`    | `State`, `lookup`; `(Φ , s) ⊢ e ⇛ C′ ⟨ r ⟩ ⊣ t`                 |
+| `Recompose`    | `C ⟨ r ⟩` recomposes to the expression, up to residues          |
+| `Transition`   | `e —→ e′`, the paper's T rules; none for a mismatched operand   |
+| `Step`         | `e ⇥ e′`, the paper's S rules: skip silently, then one step     |
+| `Statics`      | Types; `Γ ⊢[ e ]∶ τ` and `Γ ⊢< p >∶ τ`, as in the appendix      |
+| `Progress`     | well-typed closed: a value or decomposes, and the redex steps   |
+| `Preservation` | a run keeps the type of a well-typed closed program             |
+| `Simulation`   | a step, stripped, is steps of evaluation ignoring filters       |
+| `Patternize`   | `patternize e₁ matches e₂ ⇔ strip e₁ ≡ strip e₂`                |
 
-Other recent Agda versions should also work; nothing here is version-specific.
+Check everything with:
 
-## Checking the development
-
-From the repository root, run:
-
+```sh
+agda --safe All.agda
 ```
-agda Progress.agda
-agda Preservation.agda
-agda Simulation.agda
-agda Determinism.agda
-```
 
-Each invocation type-checks the corresponding module and all of its
-dependencies. There are no holes, no postulates, and no `--rewriting`
-extensions; a clean exit code means every theorem stated below has been
-fully verified.
-
-## Repository layout
-
-| File | Contents |
-|---|---|
-| `Base.agda` | Syntax of expressions, patterns, values, actions (`⊳` for *step*, `∥` for *skip*), gases (`𝟙` for *one*, `⋆` for *all*), and the `value?` decision procedure. |
-| `Substitution.agda` | Variable insertion/shifting, capture-avoiding substitution `applyₑ`, and the `patternize` coercion from expressions to patterns. |
-| `Match.agda` | The `strip` operation and the structural pattern-matching judgment `_matches_`, with its decision procedure. Uses de Bruijn indices, so `α`-equivalence is built in. |
-| `Statics.agda` | Type grammar (`` `ℕ ``, `_`→_`) and typing judgments for expressions (`_⊢[_]∶_`), patterns (`_⊢<_>∶_`), and evaluation contexts (`_⊢⟨_⟩∶_`). |
-| `Dynamics.agda` | Evaluation contexts `Ctx`, the instruction transition `_—→_`, decomposition `_⇒_`, composition `_⇐_`, action selection `_⊢_⊣_`, instrumentation `_⊢_⇝_`, optimization `_⇴_`, the `decay` function, and finally the filtered stepping relation `_⊢_⇥_` (and the underlying unfiltered step `_↦_`, with reflexive–transitive closure `_↦*_`). |
-| `Preservation.agda` | Preservation for the filtered stepping relation. |
-| `Progress.agda` | Progress for the underlying step relation, and single-iteration progress for the filtered stepping pipeline. |
-| `Simulation.agda` | The similarity relation `_∼_` and the simulation theorem: every filtered step is simulated by a multi-step trace in the underlying calculus. |
-| `Determinism.agda` | Determinism of instrumentation, decomposition, composition, optimization, instruction transition, and filtered stepping. |
-| `Eq.agda` | Decidable equality of expressions, used by the matching decision procedure. |
-
-## Theorems
-
-The paper's metatheoretic results map to the following names in the
-development:
-
-| Paper | Statement | Agda name | Location |
-|---|---|---|---|
-| Theorem 1 (Preservation) | If `Γ ⊢ e : τ` and `e ⇥ e′`, then `Γ ⊢ e′ : τ`. | `preserve` | `Preservation.agda:206` |
-| Theorem 2 (Progress) | If `∅ ⊢ e : τ`, then `e` is a value or `∃ e′. e ↦ e′`. | `↦-progress` | `Progress.agda:136` |
-| Theorem 3 (Simulation) | If `e ⇥ e′`, then `strip e ↦* strip e′`. | `sim` | `Simulation.agda:239` |
-| Theorem 4 (Single-Iteration Progress) | If `∅ ⊢ e : τ`, then `e` is a value or one full filtered pipeline iteration exists. | `filter-iteration` | `Progress.agda:184` |
-
-The simulation theorem is stated in terms of a similarity relation `_∼_`
-(`Simulation.agda:14`) and packaged as a `Leg` (`Simulation.agda:150`)
-witnessing both the similarity of the targets and the multi-step trace; the
-strip-based formulation in the paper follows by `strip-∼` and `∼-strip`.
-
-In addition, `Determinism.agda` proves determinism of every intermediate
-relation used by the stepper (`⇝`, `⇒`, `⇐`, `⇴`, `→`, and `⇥`).
-
-## Notation: paper → Agda
-
-| Paper | Agda |
-|---|---|
-| Lambda abstraction `λx.e` | `ƛ e` (de Bruijn) |
-| Application `e₁(e₂)` | `e₁ `· e₂` |
-| Natural literal `n` | `# n` |
-| Addition `e₁ + e₂` | `e₁ `+ e₂` |
-| Fixpoint `μx.e` | `μ e` (de Bruijn) |
-| Filter `debug f in e` | `φ f e` where `f : Filter = Pat × Act × Gas` |
-| Residue ⟨r⟩ e | `δ r e` where `r : Residue = Act × Gas × ℕ` |
-| Action `step` / `skip` | `∥` / `⊳` |
-| Gas `one` / `all` | `𝟙` / `⋆` |
-| Pattern wildcards `$e` / `$v` | `$e` / `$v` |
-| `Strip(e)` | `strip e` |
-| `Decay(𝓔)` | `decay ε` |
-| Instrumentation `(p,a,g,l) ⊢ e ↝ e′` | `(p , a , g , l) ⊢ e ⇝ e′` |
-| Optimization `e ↝_opt e′` | `e ⇴ e′` |
-| Decomposition `e ⇒ 𝓔{e₀}` | `e ⇒ ε ⟨ e₀ ⟩` |
-| Composition `e ⇐ 𝓔{e₀}` | `e ⇐ ε ⟨ e₀ ⟩` |
-| Action selection `(a,l) ⊢ 𝓔 ⊣ a′` | `(a , l) ⊢ ε ⊣ a′` |
-| Instruction transition `e → e′` | `e —→ e′` |
-| Filtered step `e ⇉ⁿ e′` | `(p , a , g , l) ⊢ e ⇥ e′` |
-| Underlying step `e ↦ e′` | `e ↦ e′` |
-| Multi-step `e ↦* e′` | `e ↦* e′` |
-| Typing `Γ ⊢ e : τ` | `Γ ⊢[ e ]∶ τ` (expressions) / `Γ ⊢< p >∶ τ` (patterns) |
-
-## A note on representation
-
-The development uses **de Bruijn indices** throughout. As a result,
-`α`-equivalence holds definitionally: the pattern-matching rule `M-Lam` in
-the paper (`λx₁.e₁ ▷ λx₂.e₂` when `strip e₁ ≡ strip e₂`) is implemented in
-Agda as `(ƛ eₚ) matches (ƛ eₑ) when strip eₚ ≡ strip eₑ`, with no separate
-α-conversion. Substitution and pattern coercion are fused into the single
-function `applyₑ`/`applyₚ` to avoid intermediate ill-formed states (e.g.,
-shifting down a free variable). Termination of `instr` and `optimize` is
-established by well-founded recursion on expression size.
+Tested with Agda 2.6.4.1 and agda-stdlib 2.0.

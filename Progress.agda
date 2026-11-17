@@ -1,207 +1,69 @@
 module Progress where
 
 open import Base
-open import Match
+open import Ctx using (_·ₗ_; _·ᵣ_; _+ₗ_; _+ᵣ_; φ)
+open import Decompose
 open import Statics
-open import Dynamics
-open import Preservation
-open import Data.Nat using (ℕ; _+_)
-open import Data.Sum using (_⊎_; inj₁; inj₂)
-open import Data.Product using (_×_; _,_; ∃; ∃-syntax)
-open import Relation.Nullary using (Dec; yes; no; ¬_; _×-dec_)
-open import Relation.Binary.PropositionalEquality as Eq using (refl; _≡_; cong; cong₂; subst; subst₂; sym; trans)
-open import Function.Bundles using (_↔_; Inverse)
-open import Data.Empty using (⊥-elim)
+open import Transition
+open import Data.List using (_∷_)
+open import Data.Nat using (ℕ; _⊔_)
+open import Data.Product using (_×_; _,_; ∃-syntax)
+open import Relation.Nullary using (¬_)
 
+data ⇛-Progress (s : Filters × State) (e : Exp) : Set where
+  ⇛-V : (V : e value)
+    → ⇛-Progress s e
 
-data _⊢_⇥′_ : Pat × Act × Gas × ℕ → Exp → Exp → Set where
-  step : ∀ {p a g l e eᵢ e′ e₀ e₀′ ε₀}
-    → (I : (p , a , g , l) ⊢ e ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : (a , l) ⊢ ε₀ ⊣ ∥)
-    → (T : e₀ —→ e₀′)
-    → (C : e′ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
-    → (p , a , g , l) ⊢ e ⇥′ e′
+  ⇛-D : ∀ {o t}
+    → (D : s ⊢ e ⇛ o ⊣ t)
+    → ⇛-Progress s e
 
-  skip : ∀ {p a g l e eᵢ e′ e″ e₀ e₀′ ε₀}
-    → (R : (p , a , g , l) ⊢ e ⇥′ e′)
-    → (I : (p , a , g , l) ⊢ e′ ⇝ eᵢ)
-    → (D : eᵢ ⇒ ε₀ ⟨ e₀ ⟩)
-    → (A : e₀ filter ⊎ (a , l) ⊢ ε₀ ⊣ ⊳)
-    → (T : e₀ —→ e₀′)
-    → (C : e″ ⇐ (decay ε₀) ⟨ e₀′ ⟩)
-    → (p , a , g , l) ⊢ e ⇥′ e″
+value-final : ∀ {s v o t} → v value → ¬ (s ⊢ v ⇛ o ⊣ t)
+value-final V-ƛ ()
+value-final V-# ()
 
-  done : ∀ {p a g l v}
-    → v value
-    → (p , a , g , l) ⊢ v ⇥′ v
+progress : ∀ {Φ s e τ} → ∅ ⊢[ e ]∶ τ → ⇛-Progress (Φ , s) e
+progress (⊢-` ())
+progress (⊢-ƛ _) = ⇛-V V-ƛ
+progress ⊢-# = ⇛-V V-#
+progress {Φ} {s} {eₗ `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ)
+  with lookup Φ (eₗ `· eᵣ) s in L
+... | s′ with progress {Φ} {record s′ { ctx = ctx s′ ·ₗ eᵣ }} ⊢ₗ
+...   | ⇛-D D = ⇛-D (D-ξ-·ₗ L D)
+...   | ⇛-V Vₗ with progress {Φ} {record s′ { ctx = eₗ ·ᵣ ctx s′ }} ⊢ᵣ
+...     | ⇛-D D = ⇛-D (D-ξ-·ᵣ L D)
+...     | ⇛-V Vᵣ = ⇛-D (D-β-· Vₗ Vᵣ L)
+progress {Φ} {s} {eₗ `+ eᵣ} (⊢-+ ⊢ₗ ⊢ᵣ)
+  with lookup Φ (eₗ `+ eᵣ) s in L
+... | s′ with progress {Φ} {record s′ { ctx = ctx s′ +ₗ eᵣ }} ⊢ₗ
+...   | ⇛-D D = ⇛-D (D-ξ-+ₗ L D)
+...   | ⇛-V Vₗ with progress {Φ} {record s′ { ctx = eₗ +ᵣ ctx s′ }} ⊢ᵣ
+...     | ⇛-D D = ⇛-D (D-ξ-+ᵣ L D)
+...     | ⇛-V Vᵣ = ⇛-D (D-β-+ Vₗ Vᵣ L)
+progress {Φ} {s} {φ f e} (⊢-φ _ ⊢ₑ)
+  with progress {f ∷ Φ} {record s { ctx = φ f (ctx s) }} ⊢ₑ
+... | ⇛-D D = ⇛-D (D-ξ-φ D)
+... | ⇛-V V = ⇛-D (D-β-φ V)
+progress {Φ} {s} {δ (b , n) e} (⊢-δ ⊢ₑ) with bump (act s , act-lvl s) (b , n) in B
+... | (a′ , l′) with progress {Φ}
+  {state a′ l′ (n ⊔ ins-lvl s) (keep (ins-lvl s) (b , n) (ctx s))} ⊢ₑ
+...   | ⇛-D D = ⇛-D (D-ξ-δ B D)
+...   | ⇛-V V = ⇛-D (D-β-δ V B)
+progress {Φ} {s} {μ e} (⊢-μ _) with lookup Φ (μ e) s in L
+... | s′ = ⇛-D (D-β-μ L)
 
-data Progress_under_ : Exp → Pat × Act × Gas × ℕ → Set where
-  P : ∀ {p a g l e e′}
-    → e ⇥ e′
-    → Progress e under (p , a , g , l)
-
-data ⇒-Progress : Exp → Set where
-  ⇒-V : ∀ {v}
-    → (V : v value)
-    → ⇒-Progress v
-
-  ⇒-D : ∀ {e c o}
-    → (D : e ⇒ c ⟨ o ⟩)
-    → ⇒-Progress e
-
-⇝-progress : ∀ p a g l {e τ}
-  → ∅ ⊢ e ∶ τ
-  → ∃[ e′ ]((p , a , g , l) ⊢ e ⇝ e′ × ∅ ⊢ e′ ∶ τ)
-⇝-progress p a g l {e} ⊢ = instr p a g l e , ⇝-instr p a g l e , ⇝-preserve ⊢ (⇝-instr p a g l e)
-
-value-⇝-value : ∀ {p a g l v v′}
-  → v value
-  → (p , a , g , l) ⊢ v ⇝ v′
-  → v′ value
-value-⇝-value V-ƛ (I-V V-ƛ) = V-ƛ
-value-⇝-value V-# (I-V V-#) = V-#
-
-¬value-⇝-¬value : ∀ {p a g l v v′}
-  → ¬ (v value)
-  → (p , a , g , l) ⊢ v ⇝ v′
-  → ¬ (v′ value)
-¬value-⇝-¬value ¬V (I-V V) = λ V → ¬V V
-¬value-⇝-¬value ¬V (I-`) ()
-¬value-⇝-¬value ¬V (I-·-⊤ _ _ _) ()
-¬value-⇝-¬value ¬V (I-·-⊥ _ _ _) ()
-¬value-⇝-¬value ¬V (I-+-⊤ _ _ _) ()
-¬value-⇝-¬value ¬V (I-+-⊥ _ _ _) ()
-¬value-⇝-¬value ¬V (I-φ _ _) ()
-¬value-⇝-¬value ¬V (I-δ _) ()
-
-value-⇜-value : ∀ {p a g l v v′}
-  → v′ value
-  → (p , a , g , l) ⊢ v ⇝ v′
-  → v value
-value-⇜-value V-ƛ (I-V V-ƛ) = V-ƛ
-value-⇜-value V-# (I-V V-#) = V-#
-
-⇒-progress : ∀ {e τ}
-  → ∅ ⊢ e ∶ τ
-  → ⇒-Progress e
-⇒-progress (⊢-ƛ ⊢) = ⇒-V V-ƛ
-⇒-progress (⊢-· ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-V Vᵣ = ⇒-D (D-β-· Vₗ Vᵣ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·ᵣ Vₗ Dᵣ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-·ₗ Dₗ)
-⇒-progress (⊢-· {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-·ₗ Dₗ)
-⇒-progress (⊢-+ ⊢ₗ ⊢ᵣ) with ⇒-progress ⊢ₗ with ⇒-progress ⊢ᵣ
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-V Vᵣ = ⇒-D (D-β-+ Vₗ Vᵣ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-V Vₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+ᵣ Vₗ Dᵣ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-V Vᵣ = ⇒-D (D-ξ-+ₗ Dₗ)
-⇒-progress (⊢-+ {eₗ = eₗ} {eᵣ = eᵣ} ⊢ₗ ⊢ᵣ) | ⇒-D Dₗ | ⇒-D Dᵣ = ⇒-D (D-ξ-+ₗ Dₗ)
-⇒-progress ⊢-# = ⇒-V V-#
-⇒-progress (⊢-φ ⊢ₚ ⊢ₑ) with ⇒-progress ⊢ₑ
-⇒-progress (⊢-φ {p = p} {ag = ag} {e = e} ⊢ₚ ⊢ₑ) | ⇒-V V = ⇒-D (D-β-φ V)
-⇒-progress (⊢-φ {p = p} {ag = ag} {e = e} ⊢ₚ ⊢ₑ) | ⇒-D D = ⇒-D (D-ξ-φ D)
-⇒-progress (⊢-δ ⊢) with ⇒-progress ⊢
-⇒-progress (⊢-δ {r = r} {e = e} ⊢) | ⇒-V V = ⇒-D (D-β-δ V)
-⇒-progress (⊢-δ {r = r} {e = e} ⊢) | ⇒-D D = ⇒-D (D-ξ-δ D)
-⇒-progress (⊢-μ ⊢ₑ) = ⇒-D D-β-μ
-
-⊢⊣-progress : ∀ a l {e c o}
-  → e ⇒ c ⟨ o ⟩
-  → ∃[ a′ ]((a , l) ⊢ c ⊣ a′)
-⊢⊣-progress a l {c = c} D = (select a l c) , ⊢⊣-select
-
-→-progress : ∀ {e τ c o}
-  → ∅ ⊢ e ∶ τ
-  → e ⇒ c ⟨ o ⟩
-  → ∃[ o′ ](o —→ o′)
-→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ₗ D) = →-progress ⊢ₗ D
-→-progress (⊢-· ⊢ₗ ⊢ᵣ) (D-ξ-·ᵣ V D) = →-progress ⊢ᵣ D
-→-progress (⊢-· {eᵣ = eᵣ} (⊢-ƛ {e = e} ⊢ₗ) ⊢ᵣ) (D-β-· V-ƛ Vᵣ) = applyₑ e 0 eᵣ , T-β-· Vᵣ
-→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ₗ D) = →-progress ⊢ₗ D
-→-progress (⊢-+ ⊢ₗ ⊢ᵣ) (D-ξ-+ᵣ V D) = →-progress ⊢ᵣ D
-→-progress (⊢-+ (⊢-# {n = nₗ}) (⊢-# {n = nᵣ})) (D-β-+ V-# V-#) = (# (nₗ Data.Nat.+ nᵣ)) , T-β-+
-→-progress (⊢-φ x ⊢) (D-ξ-φ D) = →-progress ⊢ D
-→-progress (⊢-φ {e = e} x ⊢) (D-β-φ V) = e , (T-β-φ V)
-→-progress (⊢-δ ⊢) (D-ξ-δ D) = →-progress ⊢ D
-→-progress (⊢-δ {e = e} ⊢) (D-β-δ V) = e , T-β-δ V
-→-progress (⊢-μ {e = e} ⊢) (D-β-μ) = applyₑ e 0 (μ e) , T-β-μ
-
-⇐-progress′ : ∀ {e τ c o o′}
+⇛-progress : ∀ {s e τ C′ r t}
   → ∅ ⊢[ e ]∶ τ
-  → e ⇒ c ⟨ o ⟩
-  → o —→ o′
-  → ∃[ e′ ](e′ ⇐ (decay c) ⟨ o′ ⟩)
-⇐-progress′ {c = c} {o′ = o′} ⊢ D T = (compose (decay c) o′) , (compose-⇐ (decay c) o′)
-
-↦-progress : ∀ {e : Exp} {τ : Typ}
-  → ∅ ⊢ e ∶ τ
-  → e value ⊎ ∃[ e′ ](e ↦ e′)
-↦-progress {ƛ e} (⊢-ƛ ⊢) = inj₁ V-ƛ
-↦-progress {eₗ `· eᵣ} (⊢-· ⊢ₗ ⊢ᵣ)
-    with (↦-progress ⊢ₗ)     with (↦-progress ⊢ᵣ)
-... | inj₁ (V-ƛ {e})          | inj₁ V = inj₂ (applyₑ e 0 eᵣ , (step (D-β-· V-ƛ V) (T-β-· V) C-∘))
-... | inj₁ V-ƛ                | inj₂ (eᵣ′ , step D T C) = inj₂ ((eₗ `· eᵣ′) , (step (D-ξ-·ᵣ V-ƛ D) T (C-·ᵣ C)))
-... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `· eᵣ , (step (D-ξ-·ₗ D) T (C-·ₗ C)))
-↦-progress {eₗ `+ eᵣ} (⊢-+ ⊢ₗ ⊢ᵣ)
-    with (↦-progress ⊢ₗ)     with (↦-progress ⊢ᵣ)
-... | inj₁ (V-# {nₗ})         | inj₁ (V-# {nᵣ}) = inj₂ ((# (nₗ + nᵣ)) , (step (D-β-+ V-# V-#) (T-β-+) C-∘))
-... | inj₁ V-#                | inj₂ (eᵣ′ , step D T C) = inj₂ ((eₗ `+ eᵣ′) , (step (D-ξ-+ᵣ V-# D) T (C-+ᵣ C)))
-... | inj₂ (eₗ′ , step D T C) | _ = inj₂ (eₗ′ `+ eᵣ , (step (D-ξ-+ₗ D) T (C-+ₗ C)))
-↦-progress {# _} ⊢-# = inj₁ V-#
-↦-progress {φ f e} (⊢-φ x ⊢) with (↦-progress ⊢)
-... | inj₁ V = inj₂ (e , (step (D-β-φ V) (T-β-φ V) C-∘))
-... | inj₂ (e′ , step D T C) = inj₂ (φ f e′ , step (D-ξ-φ D) T (C-φ C))
-↦-progress {δ r e} (⊢-δ ⊢) with (↦-progress ⊢)
-... | inj₁ V = inj₂ (e , (step (D-β-δ V) (T-β-δ V) C-∘))
-... | inj₂ (e′ , step D T C) = inj₂ (δ r e′ , step (D-ξ-δ D) T (C-δ C))
-↦-progress {μ e} (⊢-μ ⊢ₑ) = inj₂ (applyₑ e 0 (μ e) , step D-β-μ T-β-μ C-∘)
-
--- The strong filtered-progress statement -- "for any well-typed e and
--- any filter (p, a, g, l), there exists e′ such that e ⇥′ e′" -- does
--- not hold:
---
---   * If the first action selection yields ⊳ (skip), the `step`
---     constructor of ⇥′ cannot fire (it requires action ∥), and the
---     `skip` constructor requires a prior derivation of e ⇥′ e′ which
---     we have no way to construct from a non-value e. A program like
---     `φ ($e, ⊳, ⋆) (1 `+ 2)` exhibits this: instrumentation places a
---     priority-1 skip-residue around `1 `+ 2`, which overrides the
---     default ∥ during action selection.
---   * The sibling relation ⇥ in Dynamics.agda has forward-chained skip
---     and handles the example above as skip;skip;skip;done. But the
---     existential ∃[ e′ ](e ⇥ e′) is still not provable in general:
---     under a skip-everything filter, a divergent program (using μ)
---     produces an infinite chain of silent skips with no `done` or
---     `step` to terminate the derivation -- correct semantics, but no
---     finite Agda derivation.
---
--- What we can prove is single-iteration progress: for any well-typed
--- e, either e is a value or the stepper can take exactly one full
--- pipeline iteration (instrument, decompose, select action, transition,
--- compose). The resulting action may be ∥ or ⊳; we make no commitment
--- to which.
-
-filter-iteration : ∀ {p a g l e τ}
-  → ∅ ⊢[ e ]∶ τ
-  → e value
-    ⊎ ∃[ eᵢ ] ∃[ ε ] ∃[ e₀ ] ∃[ a′ ] ∃[ e₀′ ] ∃[ e′ ]
-         ( ((p , a , g , l) ⊢ e ⇝ eᵢ)
-         × (eᵢ ⇒ ε ⟨ e₀ ⟩)
-         × ((a , l) ⊢ ε ⊣ a′)
-         × (e₀ —→ e₀′)
-         × (e′ ⇐ (decay ε) ⟨ e₀′ ⟩)
-         )
-filter-iteration {p} {a} {g} {l} {e} ⊢ with e value?
-... | yes V = inj₁ V
-... | no ¬V
-    with ⇝-progress p a g l ⊢
-... | (eᵢ , I , ⊢ᵢ)
-    with ⇒-progress ⊢ᵢ
-... | ⇒-V Vᵢ = ⊥-elim (¬value-⇝-¬value ¬V I Vᵢ)
-... | ⇒-D {c = ε} {o = e₀} D
-    with ⊢⊣-progress a l D
-... | (a′ , A)
-    with →-progress ⊢ᵢ D
-... | (e₀′ , T)
-    with ⇐-progress′ ⊢ᵢ D T
-... | (e′ , C) = inj₂ (eᵢ , ε , e₀ , a′ , e₀′ , e′ , I , D , A , T , C)
+  → s ⊢ e ⇛ C′ ⟨ r ⟩ ⊣ t
+  → ∃[ r′ ] r —→ r′
+⇛-progress (⊢-· ⊢ₗ _) (D-ξ-·ₗ _ D) = ⇛-progress ⊢ₗ D
+⇛-progress (⊢-· _ ⊢ᵣ) (D-ξ-·ᵣ _ D) = ⇛-progress ⊢ᵣ D
+⇛-progress (⊢-· (⊢-ƛ _) _) (D-β-· V-ƛ Vᵣ _) = _ , T-β-· Vᵣ
+⇛-progress (⊢-+ ⊢ₗ _) (D-ξ-+ₗ _ D) = ⇛-progress ⊢ₗ D
+⇛-progress (⊢-+ _ ⊢ᵣ) (D-ξ-+ᵣ _ D) = ⇛-progress ⊢ᵣ D
+⇛-progress (⊢-+ ⊢-# ⊢-#) (D-β-+ V-# V-# _) = _ , T-β-+
+⇛-progress (⊢-φ _ ⊢ₑ) (D-ξ-φ D) = ⇛-progress ⊢ₑ D
+⇛-progress (⊢-φ _ _) (D-β-φ V) = _ , T-β-φ V
+⇛-progress (⊢-δ ⊢ₑ) (D-ξ-δ _ D) = ⇛-progress ⊢ₑ D
+⇛-progress (⊢-δ _) (D-β-δ V _) = _ , T-β-δ V
+⇛-progress (⊢-μ _) (D-β-μ _) = _ , T-β-μ
